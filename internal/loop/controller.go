@@ -326,29 +326,6 @@ func (c *Controller) ShouldContinue() bool {
 	return false
 }
 
-// CheckExitConditions analyzes output for completion signals
-func (c *Controller) CheckExitConditions(output string) bool {
-	// TODO: Will be implemented with response analysis package
-	return false
-}
-
-// HandleCircuitBreakerOpen handles circuit breaker being open
-func (c *Controller) HandleCircuitBreakerOpen() error {
-	return fmt.Errorf("circuit breaker is %s", c.breaker.GetState())
-}
-
-// HandleRateLimitExceeded handles rate limit being exceeded
-func (c *Controller) HandleRateLimitExceeded() error {
-	return c.rateLimiter.WaitForReset(stdcontext.Background())
-}
-
-// UpdateProgress updates loop progress for display
-func (c *Controller) UpdateProgress(loopNum int, status string) {
-	// This would update TUI model in the full implementation
-	// For now, just print
-	fmt.Printf("📊 Progress: Loop %d - %s\n", loopNum, status)
-}
-
 // GracefulExit performs cleanup before exiting
 func (c *Controller) GracefulExit() error {
 	fmt.Println("\n🧹 Performing graceful exit...")

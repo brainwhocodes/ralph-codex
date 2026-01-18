@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/brainwhocodes/ralph-codex/internal/loop"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -98,14 +96,10 @@ type Model struct {
 	height       int      // Terminal height
 	tasks        []Task   // Tasks from @fix_plan.md
 	activity     string   // Current activity description
-	controller   *loop.Controller
-	ctx          context.Context
-	cancel       context.CancelFunc
-
-	// UI components
-	logViewport  viewport.Model  // Scrollable log viewport
-	taskSpinner  spinner.Model   // Spinner for active task
-	activeTaskIdx int            // Index of currently active task (-1 if none)
+	controller    *loop.Controller
+	ctx           context.Context
+	cancel        context.CancelFunc
+	activeTaskIdx int // Index of currently active task (-1 if none)
 }
 
 // Init initializes model
@@ -221,9 +215,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		// Resize viewport
-		m.logViewport.Width = msg.Width - 4
-		m.logViewport.Height = msg.Height - 10
 		return m, nil
 
 	case TickMsg:
@@ -256,24 +247,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// addLog adds a log entry and updates the viewport
+// addLog adds a log entry
 func (m *Model) addLog(level, message string) {
 	formattedLog := styledLogEntry(level, message)
 	m.logs = append(m.logs, formattedLog)
 	if len(m.logs) > 500 {
 		m.logs = m.logs[len(m.logs)-500:]
 	}
-	// Auto-scroll to bottom if in logs view
-	if m.activeView == "logs" {
-		m.updateLogViewport()
-		m.logViewport.GotoBottom()
-	}
-}
-
-// updateLogViewport updates the viewport content with current logs
-func (m *Model) updateLogViewport() {
-	content := strings.Join(m.logs, "\n")
-	m.logViewport.SetContent(content)
 }
 
 // updateActiveTask updates the active task based on loop progress

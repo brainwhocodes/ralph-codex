@@ -39,7 +39,6 @@ func GetKeybindingHelp() string {
 		{
 			Title: "Views",
 			Keys: []Keybinding{
-				{"l", "Toggle log view"},
 				{"c", "Show circuit breaker status"},
 				{"R", "Reset circuit breaker"},
 			},

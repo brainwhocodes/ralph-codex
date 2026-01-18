@@ -6,7 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/brainwhocodes/ralph-codex/internal/codex"
 	"github.com/brainwhocodes/ralph-codex/internal/loop"
@@ -23,23 +26,38 @@ func NewProgram(config codex.Config, controller *loop.Controller) *Program {
 	// Load tasks from @fix_plan.md
 	tasks := loadTasks()
 
+	// Initialize spinner with dots style
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(ColorAccent)
+
+	// Initialize viewport for logs
+	vp := viewport.New(76, 15) // Default size, will be resized
+	vp.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(ColorSecondary).
+		Padding(0, 1)
+
 	model := Model{
-		state:        StateInitializing,
-		status:       "Ready to start",
-		loopNumber:   0,
-		maxCalls:     config.MaxCalls,
-		callsUsed:    0,
-		circuitState: "CLOSED",
-		logs:         []string{},
-		activeView:   "status",
-		quitting:     false,
-		err:          nil,
-		startTime:    time.Now(), // Initialize startTime here!
-		width:        80,         // Default width
-		height:       24,         // Default height
-		tasks:        tasks,
-		activity:     "",
-		controller:   controller,
+		state:         StateInitializing,
+		status:        "Ready to start",
+		loopNumber:    0,
+		maxCalls:      config.MaxCalls,
+		callsUsed:     0,
+		circuitState:  "CLOSED",
+		logs:          []string{},
+		activeView:    "status",
+		quitting:      false,
+		err:           nil,
+		startTime:     time.Now(), // Initialize startTime here!
+		width:         80,         // Default width
+		height:        24,         // Default height
+		tasks:         tasks,
+		activity:      "",
+		controller:    controller,
+		logViewport:   vp,
+		taskSpinner:   s,
+		activeTaskIdx: -1, // No active task initially
 	}
 
 	return &Program{

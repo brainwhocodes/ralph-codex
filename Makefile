@@ -15,8 +15,8 @@ all: build test lint
 build:
 	$(GO) build $(GOFLAGS) -o $(BINARY) $(CMD_PATH)
 
-## install: Install ralph to $GOPATH/bin or $HOME/go/bin
-install: install-bin install-templates install-sdk
+## install: Install ralph to $GOPATH/bin and skills/templates
+install: install-bin install-templates install-skills
 
 ## install-bin: Install Go binary
 install-bin:
@@ -29,19 +29,15 @@ install-templates:
 	@cp -r templates/* ~/.ralph/templates/
 	@echo "Templates installed successfully"
 
-## install-sdk: Install Codex SDK runner and npm dependencies
-install-sdk:
-	@echo "Installing Codex SDK runner..."
-	@mkdir -p ~/.ralph/bin
-	@cp src/codex_runner.js ~/.ralph/bin/
-	@chmod +x ~/.ralph/bin/codex_runner.js
-	@if [ -f package.json ]; then \
-		npm install; \
-		echo "Codex SDK dependencies installed"; \
-	else \
-		echo "Warning: package.json not found, skipping npm install"; \
-	fi
-	@echo "Codex SDK runner installed to ~/.ralph/bin/codex_runner.js"
+## install-skills: Install Codex skills to ~/.codex/skills
+install-skills:
+	@echo "Installing Codex skills to ~/.codex/skills..."
+	@mkdir -p ~/.codex/skills
+	@cp -r templates/.codex/skills/* ~/.codex/skills/
+	@chmod +x ~/.codex/skills/*
+	@echo "Codex skills installed successfully"
+	@echo "Available skills:"
+	@ls -1 ~/.codex/skills/
 
 ## test: Run all tests
 test:
@@ -90,11 +86,7 @@ run: build
 
 ## setup-test: Create test project
 setup-test:
-	./$(BINARY) --command setup --name test-project
-
-## import-test: Test import command
-import-test: build
-	./$(BINARY) --command import --source test.md
+	./$(BINARY) setup --name test-project
 
 ## deps: Download dependencies
 deps:
@@ -113,10 +105,10 @@ help:
 	@echo "Available targets:"
 	@echo "  all              Build, test, and lint"
 	@echo "  build            Build the ralph binary"
-	@echo "  install          Install ralph, templates, and SDK runner"
+	@echo "  install          Install ralph, templates, and skills"
 	@echo "  install-bin      Install Go binary only"
 	@echo "  install-templates Install project templates only"
-	@echo "  install-sdk      Install Codex SDK runner only"
+	@echo "  install-skills   Install Codex skills to ~/.codex/skills"
 	@echo "  test             Run all tests"
 	@echo "  test-integration Run integration tests"
 	@echo "  test-verbose     Run tests with verbose output"
@@ -127,7 +119,6 @@ help:
 	@echo "  clean            Clean build artifacts"
 	@echo "  run              Build and run ralph"
 	@echo "  setup-test       Create test project"
-	@echo "  import-test      Test import command"
 	@echo "  deps             Download dependencies"
 	@echo "  deps-update      Update dependencies"
 	@echo "  help             Show this help message"

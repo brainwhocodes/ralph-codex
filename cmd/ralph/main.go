@@ -28,10 +28,12 @@ func main() {
 		useMonitor bool
 		verbose    bool
 
-		setupName  string
-		withGit    bool
-		importSrc  string
-		importName string
+		setupName   string
+		setupPrompt string
+		setupInit   bool
+		withGit     bool
+		importSrc   string
+		importName  string
 	)
 
 	fs := flag.NewFlagSet("ralph", flag.ExitOnError)
@@ -40,10 +42,12 @@ func main() {
 
 	fs.StringVar(&projectDir, "project", ".", "Project directory")
 	fs.StringVar(&promptFile, "prompt", "PROMPT.md", "Prompt file")
-	fs.IntVar(&maxCalls, "calls", 100, "Max API calls per hour")
+	fs.IntVar(&maxCalls, "calls", 3, "Max loop iterations (default: 3)")
 	fs.IntVar(&timeout, "timeout", 600, "Codex timeout (seconds)")
 
 	fs.StringVar(&setupName, "name", "", "Project name (for setup command)")
+	fs.StringVar(&setupPrompt, "description", "", "Project description for Codex to generate customized templates")
+	fs.BoolVar(&setupInit, "init", false, "Initialize in current directory (for existing projects)")
 	fs.BoolVar(&withGit, "git", true, "Initialize git repository (for setup command)")
 
 	fs.StringVar(&importSrc, "source", "", "Source file to import (for import command)")
@@ -57,7 +61,7 @@ func main() {
 
 	switch command {
 	case "setup":
-		handleSetupCommand(setupName, withGit, verbose)
+		handleSetupCommand(setupName, setupPrompt, setupInit, withGit, verbose)
 	case "import":
 		handleImportCommand(importSrc, importName, projectDir, verbose)
 	case "status":
@@ -87,10 +91,20 @@ func handleSubcommands(command, projectDir, promptFile string, maxCalls, timeout
 	}
 }
 
-func handleSetupCommand(projectName string, withGit bool, verbose bool) {
-	if projectName == "" {
-		fmt.Fprintln(os.Stderr, "Error: --name is required for setup command")
+func handleSetupCommand(projectName string, prompt string, init bool, withGit bool, verbose bool) {
+	if projectName == "" && !init {
+		fmt.Fprintln(os.Stderr, "Error: --name is required for setup command (or use --init for current directory)")
 		os.Exit(1)
+	}
+
+	// If --init is used without --name, use current directory name
+	if init && projectName == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: could not get current directory: %v\n", err)
+			os.Exit(1)
+		}
+		projectName = wd
 	}
 
 	opts := project.SetupOptions{
@@ -98,6 +112,8 @@ func handleSetupCommand(projectName string, withGit bool, verbose bool) {
 		TemplateDir: "",
 		WithGit:     withGit,
 		Verbose:     verbose,
+		Prompt:      prompt,
+		Init:        init,
 	}
 
 	result, err := project.Setup(opts)
@@ -403,14 +419,16 @@ func printHelp() {
 	fmt.Println("Options:")
 	fmt.Println("  --project <path>        Project directory (default: .)")
 	fmt.Println("  --prompt <file>         Prompt file (default: PROMPT.md)")
-	fmt.Println("  --calls <number>        Max API calls per hour (default: 100)")
+	fmt.Println("  --calls <number>        Max loop iterations (default: 3)")
 	fmt.Println("  --timeout <seconds>      Codex timeout (default: 600)")
 	fmt.Println("  --monitor               Enable integrated TUI monitoring")
 	fmt.Println("  --verbose              Verbose output")
 	fmt.Println("")
 	fmt.Println("Setup command options:")
-	fmt.Println("  --name <project-name>   Project name (required)")
-	fmt.Println("  --git                  Initialize git (default: true)")
+	fmt.Println("  --name <project-name>   Project name (required unless --init)")
+	fmt.Println("  --description <text>    Project description for Codex to generate templates")
+	fmt.Println("  --init                  Initialize in current directory (existing project)")
+	fmt.Println("  --git                   Initialize git (default: true)")
 	fmt.Println("")
 	fmt.Println("Import command options:")
 	fmt.Println("  --source <file>         Source file to import (required)")

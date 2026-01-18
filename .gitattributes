@@ -1,0 +1,8 @@
+# Force GitHub to recognize this as a Go project
+*.go linguist-detectable=true
+*.md linguist-documentation=true
+
+# Exclude documentation from language stats
+AGENTS.md linguist-documentation=true
+CLAUDE.md linguist-documentation=true
+*.md linguist-documentation=true

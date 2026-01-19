@@ -1,11 +1,16 @@
-# Ralph generated files
+# Binary
+ralph
+
+# Ralph state files
 .call_count
 .last_reset
 .exit_signals
-status.json
+.circuit_breaker_state
+.codex_session_id
 .ralph_session
 .ralph_session_history
 .claude_session_id
+status.json
 
 # Logs
 logs/*
@@ -39,11 +44,3 @@ target/
 .idea/
 *.swp
 *.swo
-# State files
-.call_count
-.last_reset
-.circuit_breaker_state
-.codex_session_id
-.exit_signals
-# Temporary state files
-*.tmp

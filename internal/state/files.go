@@ -8,6 +8,31 @@ import (
 	"time"
 )
 
+// LoadState is a generic helper for loading JSON state files
+func LoadState[T any](filename string, defaultVal T) (T, error) {
+	data, err := ReadStateFile(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultVal, nil
+		}
+		return defaultVal, err
+	}
+	var result T
+	if err := json.Unmarshal(data, &result); err != nil {
+		return defaultVal, fmt.Errorf("failed to parse %s: %w", filename, err)
+	}
+	return result, nil
+}
+
+// SaveState is a generic helper for saving JSON state files
+func SaveState[T any](filename string, value T) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to marshal %s: %w", filename, err)
+	}
+	return WriteStateFile(filename, data)
+}
+
 // ReadStateFile reads a JSON state file
 func ReadStateFile(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
@@ -42,58 +67,22 @@ func AtomicWrite(path string, data []byte) error {
 
 // LoadCallCount loads the call count from .call_count
 func LoadCallCount() (int, error) {
-	data, err := ReadStateFile(".call_count")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return 0, nil
-		}
-		return 0, err
-	}
-
-	var count int
-	if err := json.Unmarshal(data, &count); err != nil {
-		return 0, fmt.Errorf("failed to parse call count: %w", err)
-	}
-
-	return count, nil
+	return LoadState(".call_count", 0)
 }
 
 // SaveCallCount saves the call count to .call_count atomically
 func SaveCallCount(count int) error {
-	data, err := json.Marshal(count)
-	if err != nil {
-		return fmt.Errorf("failed to marshal call count: %w", err)
-	}
-
-	return WriteStateFile(".call_count", data)
+	return SaveState(".call_count", count)
 }
 
 // LoadLastReset loads last reset time from .last_reset
 func LoadLastReset() (time.Time, error) {
-	data, err := ReadStateFile(".last_reset")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return time.Now(), nil
-		}
-		return time.Time{}, err
-	}
-
-	var t time.Time
-	if err := json.Unmarshal(data, &t); err != nil {
-		return time.Time{}, fmt.Errorf("failed to parse last reset: %w", err)
-	}
-
-	return t, nil
+	return LoadState(".last_reset", time.Now())
 }
 
 // SaveLastReset saves last reset time to .last_reset atomically
 func SaveLastReset(t time.Time) error {
-	data, err := json.Marshal(t)
-	if err != nil {
-		return fmt.Errorf("failed to marshal last reset: %w", err)
-	}
-
-	return WriteStateFile(".last_reset", data)
+	return SaveState(".last_reset", t)
 }
 
 // LoadCodexSession loads Codex session ID from .codex_session_id
@@ -105,7 +94,6 @@ func LoadCodexSession() (string, error) {
 		}
 		return "", err
 	}
-
 	return string(data), nil
 }
 
@@ -116,90 +104,36 @@ func SaveCodexSession(id string) error {
 
 // LoadRalphSession loads Ralph session metadata from .ralph_session
 func LoadRalphSession() (map[string]interface{}, error) {
-	data, err := ReadStateFile(".ralph_session")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]interface{}{}, nil
-		}
-		return nil, err
-	}
-
-	var session map[string]interface{}
-	if err := json.Unmarshal(data, &session); err != nil {
-		return nil, fmt.Errorf("failed to parse Ralph session: %w", err)
-	}
-
-	return session, nil
+	return LoadState(".ralph_session", map[string]interface{}{})
 }
 
 // SaveRalphSession saves Ralph session metadata atomically
 func SaveRalphSession(session map[string]interface{}) error {
-	data, err := json.Marshal(session)
-	if err != nil {
-		return fmt.Errorf("failed to marshal Ralph session: %w", err)
-	}
-
-	return WriteStateFile(".ralph_session", data)
+	return SaveState(".ralph_session", session)
 }
 
 // LoadExitSignals loads recent exit signals from .exit_signals
 func LoadExitSignals() ([]string, error) {
-	data, err := ReadStateFile(".exit_signals")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	var signals []string
-	if err := json.Unmarshal(data, &signals); err != nil {
-		return nil, fmt.Errorf("failed to parse exit signals: %w", err)
-	}
-
-	return signals, nil
+	return LoadState(".exit_signals", []string{})
 }
 
 // SaveExitSignals saves exit signals atomically
 func SaveExitSignals(signals []string) error {
-	data, err := json.Marshal(signals)
-	if err != nil {
-		return fmt.Errorf("failed to marshal exit signals: %w", err)
-	}
-
-	return WriteStateFile(".exit_signals", data)
+	return SaveState(".exit_signals", signals)
 }
 
 // LoadCircuitBreakerState loads circuit breaker state from .circuit_breaker_state
 func LoadCircuitBreakerState() (map[string]interface{}, error) {
-	data, err := ReadStateFile(".circuit_breaker_state")
-	if err != nil {
-		if os.IsNotExist(err) {
-			// Default to CLOSED state
-			return map[string]interface{}{
-				"state":           "CLOSED",
-				"last_check_time": time.Now().Format(time.RFC3339),
-			}, nil
-		}
-		return nil, err
+	defaultState := map[string]interface{}{
+		"state":           "CLOSED",
+		"last_check_time": time.Now().Format(time.RFC3339),
 	}
-
-	var state map[string]interface{}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, fmt.Errorf("failed to parse circuit breaker state: %w", err)
-	}
-
-	return state, nil
+	return LoadState(".circuit_breaker_state", defaultState)
 }
 
 // SaveCircuitBreakerState saves circuit breaker state atomically
 func SaveCircuitBreakerState(state map[string]interface{}) error {
-	data, err := json.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("failed to marshal circuit breaker state: %w", err)
-	}
-
-	return WriteStateFile(".circuit_breaker_state", data)
+	return SaveState(".circuit_breaker_state", state)
 }
 
 // EnsureStateDir ensures the directory for state files exists

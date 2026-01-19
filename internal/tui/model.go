@@ -479,6 +479,33 @@ func (m Model) renderLiveLogFeed(width int) string {
 	return strings.Join(lines, "\n")
 }
 
+// renderTaskLine renders a single task line with appropriate styling
+func (m Model) renderTaskLine(task Task, index int, maxWidth int) string {
+	isActive := index == m.activeTaskIdx && m.state == StateRunning
+	text := task.Text
+
+	// Truncate text if needed
+	needsTruncation := maxWidth > 10 && len(text) > maxWidth-10
+	if needsTruncation {
+		truncateAt := maxWidth - 15
+		if isActive {
+			truncateAt = maxWidth - 18
+		}
+		if truncateAt > 0 && truncateAt < len(text) {
+			text = text[:truncateAt] + "..."
+		}
+	}
+
+	// Build the line based on task state
+	if task.Completed {
+		return StyleCircuitClosed.Render(fmt.Sprintf("  [x] %s", text))
+	} else if isActive {
+		indicator := SpinnerFrames[m.tick%len(SpinnerFrames)]
+		return StyleInfoMsg.Render(fmt.Sprintf("  %s [ ] %s", indicator, text))
+	}
+	return StyleHelpDesc.Render(fmt.Sprintf("  [ ] %s", text))
+}
+
 func (m Model) renderTaskSection(width int) string {
 	if len(m.tasks) == 0 {
 		return StyleHelpDesc.Render("  No tasks loaded. Check @fix_plan.md")
@@ -520,30 +547,7 @@ func (m Model) renderTaskSection(width int) string {
 			break
 		}
 
-		var line string
-		if task.Completed {
-			line = StyleCircuitClosed.Render(fmt.Sprintf("  [x] %s", task.Text))
-		} else if i == m.activeTaskIdx && m.state == StateRunning {
-			// Show animated indicator for active task
-			indicator := SpinnerFrames[m.tick%len(SpinnerFrames)]
-			line = StyleInfoMsg.Render(fmt.Sprintf("  %s [ ] %s", indicator, task.Text))
-		} else {
-			line = StyleHelpDesc.Render(fmt.Sprintf("  [ ] %s", task.Text))
-		}
-
-		// Truncate if needed (after styling to preserve content)
-		if width > 10 && len(task.Text) > width-10 {
-			if task.Completed {
-				line = StyleCircuitClosed.Render(fmt.Sprintf("  [x] %s...", task.Text[:width-15]))
-			} else if i == m.activeTaskIdx && m.state == StateRunning {
-				indicator := SpinnerFrames[m.tick%len(SpinnerFrames)]
-				line = StyleInfoMsg.Render(fmt.Sprintf("  %s [ ] %s...", indicator, task.Text[:width-18]))
-			} else {
-				line = StyleHelpDesc.Render(fmt.Sprintf("  [ ] %s...", task.Text[:width-15]))
-			}
-		}
-
-		lines = append(lines, line)
+		lines = append(lines, m.renderTaskLine(task, i, width))
 		shown++
 	}
 

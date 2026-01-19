@@ -8,18 +8,11 @@ import (
 
 	"github.com/brainwhocodes/ralph-codex/internal/circuit"
 	"github.com/brainwhocodes/ralph-codex/internal/codex"
+	"github.com/brainwhocodes/ralph-codex/internal/config"
 )
 
-// Config holds configuration for the loop
-type Config struct {
-	Backend      string
-	ProjectPath  string
-	PromptPath   string
-	MaxCalls     int
-	Timeout      int
-	Verbose      bool
-	ResetCircuit bool
-}
+// Config is an alias to the unified config type
+type Config = config.Config
 
 // LoopEvent represents an event from the loop controller
 type LoopEvent struct {

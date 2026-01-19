@@ -110,22 +110,6 @@ func (m Model) Init() tea.Cmd {
 	})
 }
 
-// styledLogEntry returns a styled log entry with emoji prefix (no background styling)
-func styledLogEntry(level string, message string) string {
-	switch level {
-	case "INFO":
-		return StyleHelpDesc.Render("ℹ️  " + message)
-	case "WARN":
-		return StyleCircuitHalfOpen.Render("⚠️  " + message)
-	case "ERROR":
-		return StyleErrorMsg.Render("❌ " + message)
-	case "SUCCESS":
-		return StyleCircuitClosed.Render("✅ " + message)
-	default:
-		return StyleHelpDesc.Render("   " + message)
-	}
-}
-
 // Update handles messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -249,7 +233,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // addLog adds a log entry
 func (m *Model) addLog(level, message string) {
-	formattedLog := styledLogEntry(level, message)
+	formattedLog := StyledLogEntry(level, message)
 	m.logs = append(m.logs, formattedLog)
 	if len(m.logs) > 500 {
 		m.logs = m.logs[len(m.logs)-500:]
@@ -421,11 +405,10 @@ func (m Model) renderStatusView() string {
 		stateBadge = StyleStatusError.Render(" ERROR ")
 	}
 
-	// Simple spinner chars (avoid bubbles spinner for now)
-	spinnerFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	// Animated spinner for status bar
 	spinnerStr := " "
 	if m.state == StateRunning {
-		spinnerStr = StyleSpinner.Render(spinnerFrames[m.tick%len(spinnerFrames)])
+		spinnerStr = StyleSpinner.Render(BrailleSpinnerFrames[m.tick%len(BrailleSpinnerFrames)])
 	}
 
 	progressBar := m.renderRateLimitProgress()
@@ -527,9 +510,6 @@ func (m Model) renderTaskSection(width int) string {
 	lines = append(lines, taskProgressBar)
 	lines = append(lines, "")
 
-	// Spinner frames for active task
-	spinnerFrames := []string{">", ">>", ">>>", ">>", ">"}
-
 	shown := 0
 	for i, task := range m.tasks {
 		if shown >= 6 {
@@ -545,7 +525,7 @@ func (m Model) renderTaskSection(width int) string {
 			line = StyleCircuitClosed.Render(fmt.Sprintf("  [x] %s", task.Text))
 		} else if i == m.activeTaskIdx && m.state == StateRunning {
 			// Show animated indicator for active task
-			indicator := spinnerFrames[m.tick%len(spinnerFrames)]
+			indicator := SpinnerFrames[m.tick%len(SpinnerFrames)]
 			line = StyleInfoMsg.Render(fmt.Sprintf("  %s [ ] %s", indicator, task.Text))
 		} else {
 			line = StyleHelpDesc.Render(fmt.Sprintf("  [ ] %s", task.Text))
@@ -556,7 +536,7 @@ func (m Model) renderTaskSection(width int) string {
 			if task.Completed {
 				line = StyleCircuitClosed.Render(fmt.Sprintf("  [x] %s...", task.Text[:width-15]))
 			} else if i == m.activeTaskIdx && m.state == StateRunning {
-				indicator := spinnerFrames[m.tick%len(spinnerFrames)]
+				indicator := SpinnerFrames[m.tick%len(SpinnerFrames)]
 				line = StyleInfoMsg.Render(fmt.Sprintf("  %s [ ] %s...", indicator, task.Text[:width-18]))
 			} else {
 				line = StyleHelpDesc.Render(fmt.Sprintf("  [ ] %s...", task.Text[:width-15]))

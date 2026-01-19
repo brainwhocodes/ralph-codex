@@ -4,6 +4,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Log level constants
+const (
+	LogLevelInfo    = "INFO"
+	LogLevelWarn    = "WARN"
+	LogLevelError   = "ERROR"
+	LogLevelSuccess = "SUCCESS"
+)
+
+// Spinner frame constants
+var (
+	// Simple arrow spinner for task progress
+	SpinnerFrames = []string{">", ">>", ">>>", ">>", ">"}
+
+	// Braille spinner for status bar
+	BrailleSpinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+)
+
 // Border styles
 var (
 	// Border styles for boxes
@@ -212,3 +229,19 @@ var (
 			Foreground(ColorSecondary).
 			Bold(true)
 )
+
+// StyledLogEntry returns a styled log entry with emoji prefix
+func StyledLogEntry(level, message string) string {
+	switch level {
+	case LogLevelInfo:
+		return StyleHelpDesc.Render("ℹ️  " + message)
+	case LogLevelWarn:
+		return StyleCircuitHalfOpen.Render("⚠️  " + message)
+	case LogLevelError:
+		return StyleErrorMsg.Render("❌ " + message)
+	case LogLevelSuccess:
+		return StyleCircuitClosed.Render("✅ " + message)
+	default:
+		return StyleHelpDesc.Render("   " + message)
+	}
+}

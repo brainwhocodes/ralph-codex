@@ -53,3 +53,14 @@
 - Unit tests for runner package:
   - Backend selection tests (default, cli, opencode)
   - Callback setting verification
+
+## Commit 4: Docs + examples for OpenCode usage
+
+- Created `docs/opencode.md` with:
+  - Server setup and environment variable configuration
+  - Example usage with `--backend opencode`
+  - Default model setting (Z.AI GLM 4.7) and override instructions
+  - Quick-start examples for running TUI with 10-iteration loops
+  - Configuration reference table
+  - Troubleshooting guide
+  - Architecture overview

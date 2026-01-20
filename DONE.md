@@ -64,3 +64,15 @@
   - Configuration reference table
   - Troubleshooting guide
   - Architecture overview
+
+## Commit 5: CLI log mode for integration testing
+
+- Added `--log-format` flag with options: text, json, logfmt
+- Uses `charmbracelet/log` for structured logging output
+- Enables CLI-based integration testing without TUI
+- Log format modes:
+  - `text` - Human-readable colored output
+  - `json` - Machine-parseable JSON lines
+  - `logfmt` - Key-value pair format for log aggregation
+- Logs include: loop updates, tool calls, analysis results, and events
+- Verbose mode (`--verbose`) enables debug-level logging

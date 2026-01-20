@@ -13,6 +13,7 @@ import (
 	"github.com/brainwhocodes/ralph-codex/internal/loop"
 	"github.com/brainwhocodes/ralph-codex/internal/project"
 	"github.com/brainwhocodes/ralph-codex/internal/tui"
+	"github.com/charmbracelet/log"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 		timeout    int
 		useMonitor bool
 		verbose    bool
+		logFormat  string
 
 		// Backend selection
 		backend string
@@ -50,6 +52,7 @@ func main() {
 	fs := flag.NewFlagSet("ralph", flag.ExitOnError)
 	fs.BoolVar(&useMonitor, "monitor", false, "Enable integrated monitoring")
 	fs.BoolVar(&verbose, "verbose", false, "Verbose output")
+	fs.StringVar(&logFormat, "log-format", "", "Log format: text, json, or logfmt (enables CLI log mode)")
 
 	fs.StringVar(&projectDir, "project", ".", "Project directory")
 	fs.StringVar(&promptFile, "prompt", "PROMPT.md", "Prompt file")
@@ -102,7 +105,7 @@ func main() {
 
 	switch command {
 	case "init":
-		handleInitCommand(initMode, projectDir, maxCalls, timeout, verbose, backend, ocSettings)
+		handleInitCommand(initMode, projectDir, maxCalls, timeout, verbose, backend, ocSettings, logFormat)
 	case "setup":
 		handleSetupCommand(setupName, setupPrompt, setupInit, withGit, verbose)
 	case "import":
@@ -112,7 +115,7 @@ func main() {
 	case "reset-circuit":
 		handleResetCircuitCommand(projectDir)
 	case "run", "help", "version":
-		handleSubcommands(command, projectDir, promptFile, maxCalls, timeout, useMonitor, verbose, backend, ocSettings)
+		handleSubcommands(command, projectDir, promptFile, maxCalls, timeout, useMonitor, verbose, backend, ocSettings, logFormat)
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unknown command '%s'\n\n", command)
 		printHelp()
@@ -128,7 +131,7 @@ type openCodeSettings struct {
 	modelID   string
 }
 
-func handleSubcommands(command, projectDir, promptFile string, maxCalls, timeout int, useMonitor, verbose bool, backend string, ocSettings openCodeSettings) {
+func handleSubcommands(command, projectDir, promptFile string, maxCalls, timeout int, useMonitor, verbose bool, backend string, ocSettings openCodeSettings, logFormat string) {
 	switch command {
 	case "help", "--help", "-h":
 		printHelp()
@@ -138,11 +141,11 @@ func handleSubcommands(command, projectDir, promptFile string, maxCalls, timeout
 		fmt.Println("Charm TUI scaffold - Complete")
 		os.Exit(0)
 	default:
-		handleRunCommand(projectDir, promptFile, maxCalls, timeout, useMonitor, verbose, backend, ocSettings)
+		handleRunCommand(projectDir, promptFile, maxCalls, timeout, useMonitor, verbose, backend, ocSettings, logFormat)
 	}
 }
 
-func handleInitCommand(mode string, projectDir string, maxCalls int, timeout int, verbose bool, backend string, ocSettings openCodeSettings) {
+func handleInitCommand(mode string, projectDir string, maxCalls int, timeout int, verbose bool, backend string, ocSettings openCodeSettings, logFormat string) {
 	if err := os.Chdir(projectDir); err != nil {
 		fmt.Fprintf(os.Stderr, "Error changing to project directory: %v\n", err)
 		os.Exit(1)
@@ -237,8 +240,12 @@ func handleInitCommand(mode string, projectDir string, maxCalls int, timeout int
 	ctx, cancel := context.WithCancel(context.Background())
 	setupGracefulShutdown(cancel, controller)
 
-	// Always use TUI after init with explicit mode
-	runWithMonitor(ctx, controller, config, verbose, loopMode)
+	// Use log mode if log format is specified, otherwise use TUI
+	if logFormat != "" {
+		runWithLogs(ctx, controller, config, verbose, logFormat)
+	} else {
+		runWithMonitor(ctx, controller, config, verbose, loopMode)
+	}
 }
 
 func handleSetupCommand(projectName string, prompt string, init bool, withGit bool, verbose bool) {
@@ -391,7 +398,7 @@ func handleResetCircuitCommand(projectPath string) {
 	fmt.Println("  ralph --monitor")
 }
 
-func handleRunCommand(projectPath string, promptFile string, maxCalls int, timeout int, useMonitor bool, verbose bool, backend string, ocSettings openCodeSettings) {
+func handleRunCommand(projectPath string, promptFile string, maxCalls int, timeout int, useMonitor bool, verbose bool, backend string, ocSettings openCodeSettings, logFormat string) {
 	if err := os.Chdir(projectPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Error changing to project directory: %v\n", err)
 		os.Exit(1)
@@ -424,7 +431,9 @@ func handleRunCommand(projectPath string, promptFile string, maxCalls int, timeo
 	ctx, cancel := context.WithCancel(context.Background())
 	setupGracefulShutdown(cancel, controller)
 
-	if useMonitor {
+	if logFormat != "" {
+		runWithLogs(ctx, controller, config, verbose, logFormat)
+	} else if useMonitor {
 		runWithMonitor(ctx, controller, config, verbose)
 	} else {
 		runHeadless(ctx, controller, config, verbose)
@@ -502,6 +511,112 @@ func runHeadless(ctx context.Context, controller *loop.Controller, config loop.C
 		fmt.Println("\n✅ Ralph Codex loop completed successfully")
 	case <-ctx.Done():
 		fmt.Println("\n🛑 Ralph Codex stopped by user")
+		os.Exit(0)
+	}
+}
+
+func runWithLogs(ctx context.Context, controller *loop.Controller, config loop.Config, verbose bool, logFormat string) {
+	// Configure logger based on format
+	logger := log.NewWithOptions(os.Stderr, log.Options{
+		ReportTimestamp: true,
+		ReportCaller:    false,
+	})
+
+	switch logFormat {
+	case "json":
+		logger.SetFormatter(log.JSONFormatter)
+	case "logfmt":
+		logger.SetFormatter(log.LogfmtFormatter)
+	default:
+		logger.SetFormatter(log.TextFormatter)
+	}
+
+	if verbose {
+		logger.SetLevel(log.DebugLevel)
+	} else {
+		logger.SetLevel(log.InfoLevel)
+	}
+
+	logger.Info("Starting Ralph Codex in log mode",
+		"max_calls", config.MaxCalls,
+		"backend", config.Backend,
+		"format", logFormat,
+	)
+
+	// Set up event callback to log events
+	controller.SetEventCallback(func(event loop.LoopEvent) {
+		switch event.Type {
+		case "log":
+			switch event.LogLevel {
+			case "INFO":
+				logger.Info(event.LogMessage)
+			case "WARN":
+				logger.Warn(event.LogMessage)
+			case "ERROR":
+				logger.Error(event.LogMessage)
+			case "SUCCESS":
+				logger.Info(event.LogMessage, "status", "success")
+			default:
+				logger.Debug(event.LogMessage)
+			}
+
+		case "loop_update":
+			logger.Info("Loop update",
+				"loop", event.LoopNumber,
+				"calls", event.CallsUsed,
+				"status", event.Status,
+				"circuit", event.CircuitState,
+			)
+
+		case "codex_output":
+			if verbose {
+				logger.Debug("Output",
+					"type", event.OutputType,
+					"line", event.OutputLine,
+				)
+			}
+
+		case "codex_reasoning":
+			if verbose {
+				logger.Debug("Reasoning", "text", event.ReasoningText)
+			}
+
+		case "codex_tool":
+			logger.Info("Tool call",
+				"tool", event.ToolName,
+				"target", event.ToolTarget,
+				"status", event.ToolStatus,
+			)
+
+		case "analysis":
+			logger.Info("Analysis result",
+				"status", event.AnalysisStatus,
+				"tasks_completed", event.TasksCompleted,
+				"files_modified", event.FilesModified,
+				"tests", event.TestsStatus,
+				"exit_signal", event.ExitSignal,
+				"confidence", event.ConfidenceScore,
+			)
+		}
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		defer close(errCh)
+		if err := controller.Run(ctx); err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			logger.Error("Loop error", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("Ralph Codex loop completed successfully")
+	case <-ctx.Done():
+		logger.Warn("Ralph Codex stopped by user")
 		os.Exit(0)
 	}
 }
@@ -584,6 +699,7 @@ func printHelp() {
 	fmt.Println("  --timeout <seconds>     Codex timeout (default: 600)")
 	fmt.Println("  --monitor               Enable integrated TUI monitoring")
 	fmt.Println("  --verbose               Verbose output")
+	fmt.Println("  --log-format <format>   Log format: text, json, or logfmt (enables CLI log mode)")
 	fmt.Println("")
 	fmt.Println("Backend options:")
 	fmt.Println("  --backend <name>        Backend: cli or opencode (default: cli)")

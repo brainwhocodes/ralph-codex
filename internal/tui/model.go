@@ -328,6 +328,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.testsStatus = event.TestsStatus
 			m.exitSignal = event.ExitSignal
 			m.confidenceScore = event.ConfidenceScore
+
+			// Find and update task by CurrentTask text
+			if event.CurrentTask != "" {
+				m.updateTaskByText(event.CurrentTask, event.AnalysisStatus == "COMPLETE" || event.TasksCompleted > 0)
+			}
+
 			// Update state if complete
 			if m.exitSignal || (m.confidenceScore >= 0.9 && m.analysisStatus == "COMPLETE") {
 				m.state = StateComplete
@@ -474,6 +480,59 @@ func (m *Model) updateActiveTask() {
 				m.tasks[j].Active = false
 			}
 			break
+		}
+	}
+}
+
+// updateTaskByText finds a task by partial text match and updates its status
+func (m *Model) updateTaskByText(taskText string, completed bool) {
+	if taskText == "" {
+		return
+	}
+
+	// Normalize for matching
+	taskTextLower := strings.ToLower(strings.TrimSpace(taskText))
+
+	// Find best matching task
+	bestIdx := -1
+	bestScore := 0
+
+	for i, task := range m.tasks {
+		taskLower := strings.ToLower(task.Text)
+
+		// Exact match
+		if taskLower == taskTextLower {
+			bestIdx = i
+			break
+		}
+
+		// Partial match - check if task text contains the reported text or vice versa
+		score := 0
+		if strings.Contains(taskLower, taskTextLower) {
+			score = len(taskTextLower)
+		} else if strings.Contains(taskTextLower, taskLower) {
+			score = len(taskLower)
+		}
+
+		if score > bestScore {
+			bestScore = score
+			bestIdx = i
+		}
+	}
+
+	if bestIdx >= 0 {
+		if completed {
+			m.tasks[bestIdx].Completed = true
+			m.tasks[bestIdx].Active = false
+			m.addLog(string(loop.LogLevelSuccess), fmt.Sprintf("✓ %s", m.tasks[bestIdx].Text))
+			// Activate next incomplete task
+			m.updateActiveTask()
+		} else {
+			// Mark as active (working on it)
+			for i := range m.tasks {
+				m.tasks[i].Active = (i == bestIdx)
+			}
+			m.activeTaskIdx = bestIdx
 		}
 	}
 }

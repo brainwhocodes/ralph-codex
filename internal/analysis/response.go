@@ -17,6 +17,7 @@ const (
 // RALPHStatus represents a parsed RALPH_STATUS block
 type RALPHStatus struct {
 	Status         string
+	CurrentTask    string // The task currently being worked on or just completed
 	TasksCompleted int
 	FilesModified  int
 	TestsStatus    string
@@ -116,6 +117,7 @@ func ParseRALPHStatus(output string) *RALPHStatus {
 	// Parse key-value pairs
 	status := &RALPHStatus{
 		Status:         "UNKNOWN",
+		CurrentTask:    "",
 		TasksCompleted: 0,
 		FilesModified:  0,
 		TestsStatus:    "UNKNOWN",
@@ -143,6 +145,8 @@ func ParseRALPHStatus(output string) *RALPHStatus {
 		switch key {
 		case "STATUS":
 			status.Status = value
+		case "CURRENT_TASK":
+			status.CurrentTask = value
 		case "TASKS_COMPLETED_THIS_LOOP":
 			// Parse number
 			if n, err := parseNumber(value); err == nil {

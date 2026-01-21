@@ -169,6 +169,7 @@ func BuildContext(loopNum int, remainingTasks []string, circuitState string, pre
 	ctxBuilder.WriteString("2. End your response with a RALPH_STATUS block:\n")
 	ctxBuilder.WriteString("---RALPH_STATUS---\n")
 	ctxBuilder.WriteString("STATUS: WORKING | COMPLETE | BLOCKED\n")
+	ctxBuilder.WriteString("CURRENT_TASK: <exact text of task you just completed or are working on>\n")
 	ctxBuilder.WriteString("TASKS_COMPLETED_THIS_LOOP: <number>\n")
 	ctxBuilder.WriteString("FILES_MODIFIED: <number>\n")
 	ctxBuilder.WriteString("TESTS_STATUS: PASSING | FAILING | UNKNOWN\n")

@@ -37,6 +37,7 @@ type LoopEvent struct {
 
 	// Analysis result fields (from RALPH_STATUS block)
 	AnalysisStatus     string  // WORKING, COMPLETE, BLOCKED
+	CurrentTask        string  // Current task being worked on or just completed
 	TasksCompleted     int     // Tasks completed this loop
 	FilesModified      int     // Files modified this loop
 	TestsStatus        string  // PASSING, FAILING, UNKNOWN
@@ -179,6 +180,7 @@ func (c *Controller) emitAnalysis(result *analysis.Analysis) {
 
 	if result.Status != nil {
 		event.AnalysisStatus = result.Status.Status
+		event.CurrentTask = result.Status.CurrentTask
 		event.TasksCompleted = result.Status.TasksCompleted
 		event.FilesModified = result.Status.FilesModified
 		event.TestsStatus = result.Status.TestsStatus

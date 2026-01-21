@@ -84,6 +84,7 @@ func NewProgram(config codex.Config, controller *loop.Controller, explicitMode .
 		activity:       "",
 		controller:     controller,
 		activeTaskIdx:  -1,
+		backend:        config.Backend,
 		outputLines:    []string{},
 		reasoningLines: []string{},
 	}

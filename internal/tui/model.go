@@ -116,10 +116,17 @@ type Model struct {
 	cancel        context.CancelFunc
 	activeTaskIdx int // Index of currently active task (-1 if none)
 
-	// Codex output streaming
-	outputLines    []string // Live output lines from Codex
+	// Backend and output streaming
+	backend        string   // Backend name (cli or opencode)
+	outputLines    []string // Live output lines from backend
 	reasoningLines []string // Reasoning/thinking output
 	currentTool    string   // Current tool being executed
+
+	// Deduplication tracking (SSE sends cumulative updates)
+	seenMessages     map[string]bool // Hash of seen message content
+	currentReasoning string          // Current reasoning text (replace, don't append)
+	currentMessage   string          // Current message text (for cumulative update detection)
+	lastToolCall     string          // Last tool call ID to avoid duplicates
 
 	// Analysis results (from RALPH_STATUS block)
 	analysisStatus  string  // WORKING, COMPLETE, BLOCKED
@@ -128,6 +135,13 @@ type Model struct {
 	testsStatus     string  // PASSING, FAILING, UNKNOWN
 	exitSignal      bool    // Whether exit was signaled
 	confidenceScore float64 // Confidence in completion (0-1)
+
+	// Context window tracking
+	contextUsagePercent float64 // Current usage (0-1)
+	contextTotalTokens  int     // Total tokens used
+	contextLimit        int     // Context window limit
+	contextThreshold    bool    // True if threshold reached
+	contextWasCompacted bool    // True if OpenCode compacted
 }
 
 // Init initializes model
@@ -293,6 +307,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case loop.EventTypeCodexReasoning:
 			m.addReasoningLine(event.ReasoningText)
 		case loop.EventTypeCodexTool:
+			// Deduplicate tool calls
+			toolID := fmt.Sprintf("%s:%s:%s", event.ToolName, event.ToolTarget, event.ToolStatus)
+			if toolID == m.lastToolCall {
+				return m, nil
+			}
+			m.lastToolCall = toolID
 			m.currentTool = event.ToolName
 			if event.ToolStatus == loop.ToolStatusStarted {
 				m.addOutputLine(fmt.Sprintf("> %s %s...", event.ToolName, event.ToolTarget), "tool_call")
@@ -311,6 +331,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.exitSignal || (m.confidenceScore >= 0.9 && m.analysisStatus == "COMPLETE") {
 				m.state = StateComplete
 			}
+		case loop.EventTypeContextUsage:
+			// Update context window usage
+			m.contextUsagePercent = event.ContextUsagePercent
+			m.contextTotalTokens = event.ContextTotalTokens
+			m.contextLimit = event.ContextLimit
+			m.contextThreshold = event.ContextThreshold
+			m.contextWasCompacted = event.ContextWasCompacted
 		}
 		return m, nil
 
@@ -323,6 +350,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case CodexToolCallMsg:
+		// Deduplicate tool calls
+		toolID := fmt.Sprintf("%s:%s:%s", msg.Tool, msg.Target, msg.Status)
+		if toolID == m.lastToolCall {
+			return m, nil
+		}
+		m.lastToolCall = toolID
 		m.currentTool = msg.Tool
 		if msg.Status == "started" {
 			m.addOutputLine(fmt.Sprintf("> %s %s...", msg.Tool, msg.Target), "tool_call")
@@ -370,8 +403,42 @@ func (m *Model) addLog(level, message string) {
 	}
 }
 
-// addOutputLine adds a line to the output buffer
+// addOutputLine adds a line to the output buffer with deduplication
 func (m *Model) addOutputLine(line, lineType string) {
+	// Initialize map if needed
+	if m.seenMessages == nil {
+		m.seenMessages = make(map[string]bool)
+	}
+
+	// For agent messages, detect cumulative SSE updates and replace instead of append
+	// SSE sends: "I'll" → "I'll continue" → "I'll continue fixing" etc.
+	if lineType == "agent_message" || lineType == "" {
+		// Check if this is a cumulative update (new line starts with or extends current)
+		if m.currentMessage != "" {
+			// If new line starts with current message, it's a cumulative update - replace
+			if strings.HasPrefix(line, m.currentMessage) || strings.HasPrefix(m.currentMessage, line) {
+				// Update current message to the longer one
+				if len(line) > len(m.currentMessage) {
+					m.currentMessage = line
+					// Replace the last output line
+					if len(m.outputLines) > 0 {
+						m.outputLines[len(m.outputLines)-1] = line
+					}
+				}
+				return
+			}
+		}
+		// New message - track it
+		m.currentMessage = line
+	}
+
+	// Skip exact duplicates
+	key := lineType + ":" + line
+	if m.seenMessages[key] {
+		return
+	}
+	m.seenMessages[key] = true
+
 	m.outputLines = append(m.outputLines, line)
 	// Keep last 200 lines
 	if len(m.outputLines) > 200 {
@@ -379,13 +446,16 @@ func (m *Model) addOutputLine(line, lineType string) {
 	}
 }
 
-// addReasoningLine adds a line to the reasoning buffer
+// addReasoningLine replaces reasoning (SSE sends cumulative text, not deltas)
 func (m *Model) addReasoningLine(line string) {
-	m.reasoningLines = append(m.reasoningLines, line)
-	// Keep last 50 reasoning lines
-	if len(m.reasoningLines) > 50 {
-		m.reasoningLines = m.reasoningLines[len(m.reasoningLines)-50:]
+	// Skip if same as current reasoning
+	if line == m.currentReasoning {
+		return
 	}
+	m.currentReasoning = line
+
+	// Replace the reasoning lines entirely (cumulative update)
+	m.reasoningLines = []string{line}
 }
 
 // clearOutput clears the output and reasoning buffers
@@ -393,6 +463,10 @@ func (m *Model) clearOutput() {
 	m.outputLines = nil
 	m.reasoningLines = nil
 	m.currentTool = ""
+	m.seenMessages = nil
+	m.currentReasoning = ""
+	m.currentMessage = ""
+	m.lastToolCall = ""
 }
 
 // updateActiveTask updates the active task based on loop progress

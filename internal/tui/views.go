@@ -59,11 +59,18 @@ func (m Model) renderSplitView() string {
 }
 
 // renderHeader renders the Crush-style header with gradient text and diagonal separators
-// Format: Charm RALPH ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ mode • loop 2 • 3/10
+// Format: Charm LISA SAX ♫ ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ mode • loop 2 • 3/10
 func (m Model) renderHeader(width int) string {
 	// Brand prefix and name
 	brandPrefix := StyleBrandPrefix.Render("Charm")
-	brandName := GradientText("RALPH", Dolly, Charple)
+	brandName := GradientText("LISA", Dolly, Charple)
+
+	// Animated SAX with musical notes when running
+	var saxAnim string
+	if m.state == StateRunning {
+		frame := m.tick % len(SaxNotes)
+		saxAnim = " " + StyleBrandPrefix.Render(SaxNotes[frame])
+	}
 
 	// Build metadata on right side
 	var metaParts []string
@@ -91,8 +98,8 @@ func (m Model) renderHeader(width int) string {
 
 	metadata := StyleHeaderMeta.Render(strings.Join(metaParts, MetaDotSeparator))
 
-	// Calculate space for diagonal separators
-	brandWidth := lipgloss.Width(brandPrefix) + 1 + lipgloss.Width(brandName) + 1
+	// Calculate space for diagonal separators (include SAX animation width)
+	brandWidth := lipgloss.Width(brandPrefix) + 1 + lipgloss.Width(brandName) + lipgloss.Width(saxAnim) + 1
 	metaWidth := lipgloss.Width(metadata) + 1
 	diagWidth := width - brandWidth - metaWidth - 2
 
@@ -103,7 +110,7 @@ func (m Model) renderHeader(width int) string {
 	diagonals := StyleDiagonal.Render(DiagonalSeparator(diagWidth))
 
 	// Assemble header
-	leftPart := fmt.Sprintf("%s %s ", brandPrefix, brandName)
+	leftPart := fmt.Sprintf("%s %s%s ", brandPrefix, brandName, saxAnim)
 	headerContent := leftPart + diagonals + " " + metadata
 
 	return StyleHeader.Copy().Width(width).Render(headerContent)
@@ -167,6 +174,37 @@ func (m Model) renderStatusBar(width int) string {
 		}
 	}
 
+	// Context usage indicator (before circuit)
+	var contextIndicator string
+	if m.contextLimit > 0 {
+		usagePct := int(m.contextUsagePercent * 100)
+		var ctxStyle lipgloss.Style
+		switch {
+		case m.contextThreshold:
+			ctxStyle = StyleErrorMsg // Red when threshold reached
+		case m.contextUsagePercent >= 0.6:
+			ctxStyle = StyleWarningMsg // Yellow when > 60%
+		default:
+			ctxStyle = StyleTextMuted // Normal
+		}
+		// Mini progress bar for context
+		barWidth := 10
+		filled := int(m.contextUsagePercent * float64(barWidth))
+		if filled > barWidth {
+			filled = barWidth
+		}
+		empty := barWidth - filled
+		contextIndicator = StyleTextMuted.Render("ctx ") +
+			ctxStyle.Render(fmt.Sprintf("%d%%", usagePct)) +
+			StyleTextMuted.Render(" [") +
+			ctxStyle.Render(strings.Repeat("█", filled)) +
+			StyleProgressEmpty.Render(strings.Repeat("░", empty)) +
+			StyleTextMuted.Render("]")
+		if m.contextWasCompacted {
+			contextIndicator += StyleWarningMsg.Render(" ⟳")
+		}
+	}
+
 	// Circuit state on right
 	circuitState := m.circuitState
 	if circuitState == "" {
@@ -187,7 +225,11 @@ func (m Model) renderStatusBar(width int) string {
 		circuitStyle = StyleTextMuted
 	}
 
-	rightStatus := StyleTextMuted.Render("circuit ") + circuitStyle.Render(circuitState)
+	rightStatus := ""
+	if contextIndicator != "" {
+		rightStatus = contextIndicator + StyleTextMuted.Render("  ")
+	}
+	rightStatus += StyleTextMuted.Render("circuit ") + circuitStyle.Render(circuitState)
 
 	// Calculate padding between left and right
 	leftWidth := lipgloss.Width(leftStatus) + lipgloss.Width(midStatus)
@@ -281,43 +323,63 @@ func (m Model) renderTaskLine(task Task, index int, maxWidth int) string {
 	return " " + icon + " " + textStyle.Render(text)
 }
 
-// renderOutputPane renders the output pane with live Codex output
+// backendDisplayName returns a display-friendly name for the backend
+func (m Model) backendDisplayName() string {
+	switch m.backend {
+	case "opencode":
+		return "OpenCode"
+	case "cli":
+		return "Codex CLI"
+	default:
+		if m.backend != "" {
+			return m.backend
+		}
+		return "agent"
+	}
+}
+
+// renderOutputPane renders the output pane with live agent output
 func (m Model) renderOutputPane(width, height int) string {
 	var lines []string
 
-	if len(m.outputLines) == 0 {
-		lines = append(lines, StyleTextMuted.Render(" Waiting for Codex output..."))
-	} else {
-		// Combine output lines and render as markdown
-		outputContent := strings.Join(m.outputLines, "\n")
-		rendered := renderMarkdown(outputContent, width-4)
-
-		// Split rendered content into lines
-		renderedLines := strings.Split(rendered, "\n")
-
-		// Show most recent lines that fit
-		maxLines := height - 6 // Leave room for reasoning section
-		start := 0
-		if len(renderedLines) > maxLines {
-			start = len(renderedLines) - maxLines
-		}
-
-		for i := start; i < len(renderedLines); i++ {
-			lines = append(lines, " "+renderedLines[i])
-		}
+	// Calculate space for reasoning (if any)
+	reasoningHeight := 0
+	if len(m.reasoningLines) > 0 {
+		reasoningHeight = 3 // divider + thinking line + padding
 	}
 
-	// Add reasoning section if we have reasoning
+	// Show reasoning at the top if we have it
 	if len(m.reasoningLines) > 0 {
+		// Get the latest reasoning (last line only to avoid clutter)
+		latestReasoning := m.reasoningLines[len(m.reasoningLines)-1]
+		// Truncate if too long
+		if len(latestReasoning) > width-20 {
+			latestReasoning = latestReasoning[:width-23] + "..."
+		}
+		// Animated thinking indicator
+		thinkAnim := ThinkingWave[m.tick%len(ThinkingWave)]
+		lines = append(lines, StyleReasoning.Render(" ["+thinkAnim+"] "+latestReasoning))
 		lines = append(lines, "")
-		// Subtle divider before reasoning
-		lines = append(lines, StyleDividerSubtle.Render(strings.Repeat(DividerCharSubtle, width-4)))
+	}
 
-		// Combine and render reasoning with markdown support
-		reasoningContent := strings.Join(m.reasoningLines[max(0, len(m.reasoningLines)-3):], "\n")
-		renderedReasoning := renderMarkdownFallback(reasoningContent)
+	if len(m.outputLines) == 0 && len(m.reasoningLines) == 0 {
+		lines = append(lines, StyleTextMuted.Render(fmt.Sprintf(" Waiting for %s output...", m.backendDisplayName())))
+	} else if len(m.outputLines) > 0 {
+		// Show most recent output lines that fit
+		maxLines := height - reasoningHeight - 2
+		start := 0
+		if len(m.outputLines) > maxLines {
+			start = len(m.outputLines) - maxLines
+		}
 
-		lines = append(lines, StyleReasoningHeader.Render(" thinking: ")+StyleReasoning.Render(renderedReasoning))
+		for i := start; i < len(m.outputLines); i++ {
+			line := m.outputLines[i]
+			// Truncate long lines
+			if len(line) > width-4 {
+				line = line[:width-7] + "..."
+			}
+			lines = append(lines, " "+line)
+		}
 	}
 
 	// Pad to fill height
@@ -487,31 +549,35 @@ func (m Model) renderOutputFullView() string {
 
 	var lines []string
 
-	if len(m.outputLines) == 0 {
-		lines = append(lines, StyleTextMuted.Render(" Waiting for Codex output..."))
-	} else {
-		// Combine and render output as markdown
-		outputContent := strings.Join(m.outputLines, "\n")
-		rendered := renderMarkdown(outputContent, width-4)
-
-		renderedLines := strings.Split(rendered, "\n")
-		maxLines := height - 6
-		start := 0
-		if len(renderedLines) > maxLines {
-			start = len(renderedLines) - maxLines
+	// Show reasoning at the top if we have it
+	if len(m.reasoningLines) > 0 {
+		latestReasoning := m.reasoningLines[len(m.reasoningLines)-1]
+		if len(latestReasoning) > width-20 {
+			latestReasoning = latestReasoning[:width-23] + "..."
 		}
-
-		for i := start; i < len(renderedLines); i++ {
-			lines = append(lines, " "+renderedLines[i])
-		}
+		// Animated thinking indicator
+		thinkAnim := ThinkingWave[m.tick%len(ThinkingWave)]
+		lines = append(lines, StyleReasoning.Render(" ["+thinkAnim+"] "+latestReasoning))
+		lines = append(lines, "")
 	}
 
-	// Reasoning section
-	if len(m.reasoningLines) > 0 {
-		lines = append(lines, "")
-		lines = append(lines, StyleDividerSubtle.Render(strings.Repeat(DividerCharSubtle, width-4)))
-		reasoningContent := strings.Join(m.reasoningLines, "\n")
-		lines = append(lines, StyleReasoningHeader.Render(" thinking: ")+StyleReasoning.Render(reasoningContent))
+	if len(m.outputLines) == 0 && len(m.reasoningLines) == 0 {
+		lines = append(lines, StyleTextMuted.Render(fmt.Sprintf(" Waiting for %s output...", m.backendDisplayName())))
+	} else if len(m.outputLines) > 0 {
+		// Show most recent output lines
+		maxLines := height - 8
+		start := 0
+		if len(m.outputLines) > maxLines {
+			start = len(m.outputLines) - maxLines
+		}
+
+		for i := start; i < len(m.outputLines); i++ {
+			line := m.outputLines[i]
+			if len(line) > width-4 {
+				line = line[:width-7] + "..."
+			}
+			lines = append(lines, " "+line)
+		}
 	}
 
 	content := strings.Join(lines, "\n")

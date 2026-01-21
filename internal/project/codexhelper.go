@@ -10,16 +10,18 @@ import (
 	"strings"
 
 	"github.com/brainwhocodes/ralph-codex/internal/codex"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/log"
 )
 
 // CodexOptions configures how Codex is invoked
 type CodexOptions struct {
-	Prompt      string // The prompt to send to Codex
-	WorkingDir  string // Working directory for execution
-	Verbose     bool   // Enable verbose logging
-	StreamToTTY bool   // Whether to stream output to TTY
-	PassAsArg   bool   // Whether to pass prompt as argument instead of stdin
+	Prompt         string // The prompt to send to Codex
+	WorkingDir     string // Working directory for execution
+	Verbose        bool   // Enable verbose logging
+	StreamToTTY    bool   // Whether to stream output to TTY
+	PassAsArg      bool   // Whether to pass prompt as argument instead of stdin
+	RenderMarkdown bool   // Whether to render final output as markdown
 }
 
 // CodexResult holds the result of a Codex invocation
@@ -149,7 +151,8 @@ func RunCodex(opts CodexOptions) (*CodexResult, error) {
 			}
 		case "message", "delta":
 			if parsed.Text != "" {
-				if opts.StreamToTTY {
+				if opts.StreamToTTY && !opts.RenderMarkdown {
+					// Stream raw text if not rendering markdown
 					fmt.Print(parsed.Text)
 				}
 				content.WriteString(parsed.Text)
@@ -178,7 +181,7 @@ func RunCodex(opts CodexOptions) (*CodexResult, error) {
 		return nil, fmt.Errorf("error reading codex output: %w", err)
 	}
 
-	if opts.StreamToTTY {
+	if opts.StreamToTTY && !opts.RenderMarkdown {
 		fmt.Println() // Final newline after streaming
 	}
 
@@ -194,15 +197,27 @@ func RunCodex(opts CodexOptions) (*CodexResult, error) {
 	result.Content = content.String()
 	result.RawOutput = rawOutput.String()
 
+	// Render markdown output if requested
+	if opts.StreamToTTY && opts.RenderMarkdown && result.Content != "" {
+		rendered, err := glamour.Render(result.Content, "dark")
+		if err == nil {
+			fmt.Print("\n" + rendered)
+		} else {
+			// Fallback to raw content if rendering fails
+			fmt.Print("\n" + result.Content + "\n")
+		}
+	}
+
 	return result, nil
 }
 
 // RunCodexSimple is a convenience wrapper that runs Codex and returns just the content
 func RunCodexSimple(prompt string, verbose bool) (string, error) {
 	result, err := RunCodex(CodexOptions{
-		Prompt:      prompt,
-		Verbose:     verbose,
-		StreamToTTY: true,
+		Prompt:         prompt,
+		Verbose:        verbose,
+		StreamToTTY:    true,
+		RenderMarkdown: true,
 	})
 	if err != nil {
 		return "", err

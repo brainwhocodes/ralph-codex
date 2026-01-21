@@ -147,19 +147,19 @@ func GetPrompt() (string, error) {
 func BuildContext(loopNum int, remainingTasks []string, circuitState string, prevSummary string) (string, error) {
 	var ctxBuilder strings.Builder
 
-	ctxBuilder.WriteString(fmt.Sprintf("\n--- RALPH LOOP CONTEXT ---\n"))
-	ctxBuilder.WriteString(fmt.Sprintf("Loop: %d\n", loopNum))
-	ctxBuilder.WriteString(fmt.Sprintf("Circuit Breaker: %s\n", circuitState))
+	ctxBuilder.WriteString("\n--- RALPH LOOP CONTEXT ---\n")
+	fmt.Fprintf(&ctxBuilder, "Loop: %d\n", loopNum)
+	fmt.Fprintf(&ctxBuilder, "Circuit Breaker: %s\n", circuitState)
 
 	if len(remainingTasks) > 0 && len(remainingTasks) <= 5 {
-		ctxBuilder.WriteString(fmt.Sprintf("\nRemaining Tasks:\n"))
+		ctxBuilder.WriteString("\nRemaining Tasks:\n")
 		for i, task := range remainingTasks {
-			ctxBuilder.WriteString(fmt.Sprintf("  %d. %s\n", i+1, task))
+			fmt.Fprintf(&ctxBuilder, "  %d. %s\n", i+1, task)
 		}
 	}
 
 	if prevSummary != "" {
-		ctxBuilder.WriteString(fmt.Sprintf("\nPrevious Loop Summary:\n%s\n", prevSummary))
+		fmt.Fprintf(&ctxBuilder, "\nPrevious Loop Summary:\n%s\n", prevSummary)
 	}
 
 	// Add task completion and status reporting reminder
@@ -174,7 +174,7 @@ func BuildContext(loopNum int, remainingTasks []string, circuitState string, pre
 	ctxBuilder.WriteString("EXIT_SIGNAL: true (if ALL tasks [x]) | false (if work remains)\n")
 	ctxBuilder.WriteString("---END_RALPH_STATUS---\n")
 
-	ctxBuilder.WriteString(fmt.Sprintf("--- END LOOP CONTEXT ---\n\n"))
+	ctxBuilder.WriteString("--- END LOOP CONTEXT ---\n\n")
 
 	return ctxBuilder.String(), nil
 }

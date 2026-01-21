@@ -131,34 +131,6 @@ func loadTasksForMode(mode loop.ProjectMode) PlanFileInfo {
 	}
 }
 
-// loadTasks reads tasks - kept for backwards compatibility, tries all plan files
-func loadTasks() PlanFileInfo {
-	// Try plan files in order of preference
-	planFiles := []string{
-		"IMPLEMENTATION_PLAN.md",
-		"REFACTOR_PLAN.md",
-		"@fix_plan.md",
-	}
-
-	for _, planFile := range planFiles {
-		data, err := os.ReadFile(planFile)
-		if err != nil {
-			continue
-		}
-
-		tasks := parseTasksFromData(string(data))
-		return PlanFileInfo{
-			Filename: planFile,
-			Tasks:    tasks,
-		}
-	}
-
-	return PlanFileInfo{
-		Filename: "",
-		Tasks:    []Task{},
-	}
-}
-
 // parseTasksFromData extracts checklist tasks from plan file content
 func parseTasksFromData(data string) []Task {
 	var tasks []Task

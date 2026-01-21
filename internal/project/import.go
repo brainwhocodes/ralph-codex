@@ -253,14 +253,14 @@ func IsSupportedFormat(filename string) bool {
 // GetConversionSummary returns a summary of what was converted
 func (r *ImportResult) GetConversionSummary() string {
 	builder := &strings.Builder{}
-	builder.WriteString(fmt.Sprintf("Project: %s\n", r.ProjectName))
-	builder.WriteString(fmt.Sprintf("Source: %s\n", r.ConvertedFrom))
-	builder.WriteString(fmt.Sprintf("Files created: %d\n", len(r.FilesCreated)))
+	fmt.Fprintf(builder, "Project: %s\n", r.ProjectName)
+	fmt.Fprintf(builder, "Source: %s\n", r.ConvertedFrom)
+	fmt.Fprintf(builder, "Files created: %d\n", len(r.FilesCreated))
 
 	if len(r.Warnings) > 0 {
 		builder.WriteString("\nWarnings:\n")
 		for _, warning := range r.Warnings {
-			builder.WriteString(fmt.Sprintf("  - %s\n", warning))
+			fmt.Fprintf(builder, "  - %s\n", warning)
 		}
 	}
 

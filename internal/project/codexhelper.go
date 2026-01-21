@@ -251,8 +251,16 @@ func RunCodexWithDirectStream(prompt, workingDir string) error {
 	}
 
 	// Stream directly to TTY
-	go io.Copy(os.Stdout, stdout)
-	go io.Copy(os.Stderr, stderr)
+	go func() {
+		if _, err := io.Copy(os.Stdout, stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: error copying stdout: %v\n", err)
+		}
+	}()
+	go func() {
+		if _, err := io.Copy(os.Stderr, stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: error copying stderr: %v\n", err)
+		}
+	}()
 
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("codex execution failed: %w", err)

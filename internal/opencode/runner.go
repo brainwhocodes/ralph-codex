@@ -185,7 +185,11 @@ func (r *Runner) Run(prompt string) (output string, sessionID string, err error)
 			"type":   "session_compacted",
 			"status": "detected",
 		})
-		r.saveAndRotateSession(sessionID, usage, "compacted")
+		if _, err := r.saveAndRotateSession(sessionID, usage, "compacted"); err != nil {
+			r.emitEvent("message.error", map[string]interface{}{
+				"error": fmt.Sprintf("Failed to save compacted session: %v", err),
+			})
+		}
 	}
 
 	return content, sessionID, nil

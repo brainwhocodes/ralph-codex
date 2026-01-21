@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -113,7 +112,7 @@ func (m Model) renderHeader(width int) string {
 	leftPart := fmt.Sprintf("%s %s%s ", brandPrefix, brandName, saxAnim)
 	headerContent := leftPart + diagonals + " " + metadata
 
-	return StyleHeader.Copy().Width(width).Render(headerContent)
+	return StyleHeader.Width(width).Render(headerContent)
 }
 
 // renderStatusBar renders the status bar with state indicator, spinner, and circuit state
@@ -241,7 +240,7 @@ func (m Model) renderStatusBar(width int) string {
 
 	statusContent := " " + leftStatus + midStatus + strings.Repeat(" ", paddingWidth) + rightStatus
 
-	return StyleStatus.Copy().Width(width).Render(statusContent)
+	return StyleStatus.Width(width).Render(statusContent)
 }
 
 // renderHorizontalDivider renders a subtle horizontal divider
@@ -395,52 +394,6 @@ func (m Model) renderOutputPane(width, height int) string {
 		Render(content)
 }
 
-// renderMarkdown renders markdown content using glamour
-func renderMarkdown(content string, width int) string {
-	if content == "" {
-		return ""
-	}
-
-	// Create a glamour renderer with dark style
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStylePath("dark"),
-		glamour.WithWordWrap(width),
-	)
-	if err != nil {
-		// Fallback: manually handle **bold** -> ANSI bold
-		return renderMarkdownFallback(content)
-	}
-
-	rendered, err := renderer.Render(content)
-	if err != nil {
-		return renderMarkdownFallback(content)
-	}
-
-	return strings.TrimSpace(rendered)
-}
-
-// renderMarkdownFallback provides basic markdown rendering when glamour fails
-func renderMarkdownFallback(content string) string {
-	// Handle **bold** markers manually
-	result := content
-	for {
-		start := strings.Index(result, "**")
-		if start == -1 {
-			break
-		}
-		end := strings.Index(result[start+2:], "**")
-		if end == -1 {
-			break
-		}
-		end += start + 2
-		boldText := result[start+2 : end]
-		// Use lipgloss bold styling
-		styled := lipgloss.NewStyle().Bold(true).Render(boldText)
-		result = result[:start] + styled + result[end+2:]
-	}
-	return result
-}
-
 // renderFooter renders the Crush-style footer with keybindings
 // Format: r run • p pause • l logs • c circuit • ? help • q quit
 func (m Model) renderFooter(width int) string {
@@ -465,18 +418,14 @@ func (m Model) renderFooter(width int) string {
 
 	footerContent := " " + strings.Join(parts, StyleTextSubtle.Render(MetaDotSeparator))
 
-	return StyleFooter.Copy().Width(width).Render(footerContent)
+	return StyleFooter.Width(width).Render(footerContent)
 }
 
 // renderTasksFullView renders tasks in full screen mode
 func (m Model) renderTasksFullView() string {
 	width := m.width
-	height := m.height
 	if width < 60 {
 		width = 60
-	}
-	if height < 20 {
-		height = 20
 	}
 
 	header := m.renderHeader(width)
@@ -518,7 +467,7 @@ func (m Model) renderTasksFullView() string {
 
 	content := strings.Join(lines, "\n")
 
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s return%s%s quit",
 			StyleHelpKey.Render("t"),
 			StyleTextSubtle.Render(MetaDotSeparator),
@@ -582,7 +531,7 @@ func (m Model) renderOutputFullView() string {
 
 	content := strings.Join(lines, "\n")
 
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s return%s%s quit",
 			StyleHelpKey.Render("o"),
 			StyleTextSubtle.Render(MetaDotSeparator),
@@ -630,7 +579,7 @@ func (m Model) renderLogsFullView() string {
 
 	content := strings.Join(lines, "\n")
 
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s return%s%d entries",
 			StyleHelpKey.Render("l"),
 			StyleTextSubtle.Render(MetaDotSeparator),

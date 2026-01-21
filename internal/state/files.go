@@ -54,7 +54,9 @@ func WriteStateFile(path string, data []byte) error {
 	// Atomic rename
 	if err := os.Rename(tmpPath, path); err != nil {
 		// Clean up temp file if rename fails
-		os.Remove(tmpPath)
+		if rmErr := os.Remove(tmpPath); rmErr != nil {
+			return fmt.Errorf("failed to rename %s to %s: %w (cleanup also failed: %v)", tmpPath, path, err, rmErr)
+		}
 		return fmt.Errorf("failed to rename %s to %s: %w", tmpPath, path, err)
 	}
 
@@ -154,7 +156,10 @@ func CleanupOldFiles() error {
 
 	for _, entry := range entries {
 		if filepath.Ext(entry.Name()) == ".tmp" {
-			os.Remove(filepath.Join(".", entry.Name()))
+			if err := os.Remove(filepath.Join(".", entry.Name())); err != nil {
+				// Log but continue - best effort cleanup
+				fmt.Printf("Warning: failed to remove temp file %s: %v\n", entry.Name(), err)
+			}
 		}
 	}
 

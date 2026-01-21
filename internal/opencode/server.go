@@ -62,7 +62,9 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Wait for server to be ready
 	if err := s.waitForReady(ctx, 30*time.Second); err != nil {
-		s.Stop()
+		if stopErr := s.Stop(); stopErr != nil {
+			return fmt.Errorf("server failed to start: %w (also failed to stop: %v)", err, stopErr)
+		}
 		return fmt.Errorf("server failed to start: %w", err)
 	}
 
@@ -78,7 +80,9 @@ func (s *Server) Stop() error {
 	// Send SIGTERM first
 	if err := s.cmd.Process.Signal(os.Interrupt); err != nil {
 		// If SIGTERM fails, force kill
-		s.cmd.Process.Kill()
+		if killErr := s.cmd.Process.Kill(); killErr != nil {
+			return fmt.Errorf("failed to kill process: %w", killErr)
+		}
 	}
 
 	// Wait for process to exit with timeout
@@ -92,7 +96,9 @@ func (s *Server) Stop() error {
 		// Process exited
 	case <-time.After(5 * time.Second):
 		// Force kill if still running
-		s.cmd.Process.Kill()
+		if err := s.cmd.Process.Kill(); err != nil {
+			return fmt.Errorf("failed to force kill process: %w", err)
+		}
 	}
 
 	s.cmd = nil
@@ -132,7 +138,9 @@ func (s *Server) waitForReady(ctx context.Context, timeout time.Duration) error 
 		// Try to connect
 		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", s.port), time.Second)
 		if err == nil {
-			conn.Close()
+			if closeErr := conn.Close(); closeErr != nil {
+				return fmt.Errorf("failed to close connection: %w", closeErr)
+			}
 			// Give the server a moment to fully initialize
 			time.Sleep(500 * time.Millisecond)
 			return nil
@@ -150,6 +158,11 @@ func findFreePort() int {
 	if err != nil {
 		return 8766 // Fallback to default
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			// Log error but continue - port was already obtained
+			fmt.Printf("Warning: failed to close listener: %v\n", err)
+		}
+	}()
 	return listener.Addr().(*net.TCPAddr).Port
 }

@@ -299,7 +299,7 @@ func isErrorLine(line string) bool {
 	}
 
 	// Context-specific errors
-	if strings.Contains(line, "] error") || strings.Contains(line, "] error") {
+	if strings.Contains(line, "] error") {
 		return true
 	}
 

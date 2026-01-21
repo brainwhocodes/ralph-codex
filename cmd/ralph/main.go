@@ -640,10 +640,6 @@ func setupGracefulShutdown(cancel context.CancelFunc, controller *loop.Controlle
 	}()
 }
 
-func isFlag(arg string) bool {
-	return len(arg) > 0 && arg[0] == '-'
-}
-
 func isCommand(arg string) bool {
 	validCommands := map[string]bool{
 		"run":           true,

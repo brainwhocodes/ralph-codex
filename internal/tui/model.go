@@ -179,12 +179,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			case "p":
-				if m.state == StateRunning {
+				switch m.state {
+				case StateRunning:
 					m.state = StatePaused
 					if m.controller != nil {
 						m.controller.Pause()
 					}
-				} else if m.state == StatePaused {
+				case StatePaused:
 					m.state = StateRunning
 					if m.controller != nil {
 						m.controller.Resume()
@@ -458,17 +459,6 @@ func (m *Model) addReasoningLine(line string) {
 	m.reasoningLines = []string{line}
 }
 
-// clearOutput clears the output and reasoning buffers
-func (m *Model) clearOutput() {
-	m.outputLines = nil
-	m.reasoningLines = nil
-	m.currentTool = ""
-	m.seenMessages = nil
-	m.currentReasoning = ""
-	m.currentMessage = ""
-	m.lastToolCall = ""
-}
-
 // updateActiveTask updates the active task based on loop progress
 func (m *Model) updateActiveTask() {
 	if m.state != StateRunning {
@@ -492,7 +482,12 @@ func (m *Model) runController() {
 	if m.controller == nil {
 		return
 	}
-	m.controller.Run(m.ctx)
+	if err := m.controller.Run(m.ctx); err != nil {
+		// Controller errors are already logged via event callbacks
+		// Just ensure state is updated
+		m.state = StateError
+		m.err = err
+	}
 }
 
 // View renders TUI - fills entire terminal
@@ -615,7 +610,7 @@ func (m Model) renderErrorView() string {
  Press 'q' to quit
 `)
 
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s retry%s%s quit",
 			StyleHelpKey.Render("r"),
 			StyleTextSubtle.Render(MetaDotSeparator),
@@ -707,7 +702,7 @@ func (m Model) renderCircuitView() string {
 		Render(circuitInfo)
 
 	// Footer with Crush-style
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s return%s%s reset",
 			StyleHelpKey.Render("c"),
 			StyleTextSubtle.Render(MetaDotSeparator),

@@ -343,10 +343,14 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 
 	if err != nil {
 		c.lastOutput = fmt.Sprintf("Error: %v", err)
-		c.rateLimiter.RecordCall()
+		if rlErr := c.rateLimiter.RecordCall(); rlErr != nil {
+			c.emitLog(LogLevelWarn, fmt.Sprintf("Failed to record call: %v", rlErr))
+		}
 
 		// Record error in circuit breaker
-		c.breaker.RecordError(err.Error())
+		if cbErr := c.breaker.RecordError(err.Error()); cbErr != nil {
+			c.emitLog(LogLevelWarn, fmt.Sprintf("Failed to record error in circuit breaker: %v", cbErr))
+		}
 		c.emitLog(LogLevelError, fmt.Sprintf("Codex execution failed: %v", err))
 		c.emitUpdate("execution_error")
 		return err
@@ -457,7 +461,9 @@ func (c *Controller) GracefulExit() error {
 	}
 
 	// Reset circuit breaker
-	c.breaker.Reset()
+	if err := c.breaker.Reset(); err != nil {
+		fmt.Printf("Warning: failed to reset circuit breaker: %v\n", err)
+	}
 
 	// Reset session
 	if err := codex.NewSession(); err != nil {

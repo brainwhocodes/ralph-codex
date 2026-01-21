@@ -138,7 +138,7 @@ func (m Model) renderHelpView() string {
 		Render(middleContent)
 
 	// Footer with Crush-style
-	footer := StyleFooter.Copy().Width(width).Render(
+	footer := StyleFooter.Width(width).Render(
 		fmt.Sprintf(" %s return%s%s",
 			StyleHelpKey.Render("?"),
 			StyleTextSubtle.Render(MetaDotSeparator),

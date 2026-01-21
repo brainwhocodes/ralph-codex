@@ -76,11 +76,8 @@ func (b *Breaker) RecordResult(loopNum int, filesChanged int, hasErrors bool) er
 		b.noProgressCount = 0
 	}
 
-	// Check for repeated errors
-	if hasErrors {
-		// Error detection handled elsewhere
-		// Just track that we had errors
-	}
+	// Note: Error tracking is handled by RecordError() method
+	// hasErrors parameter is used for state tracking only
 
 	return b.SaveState()
 }

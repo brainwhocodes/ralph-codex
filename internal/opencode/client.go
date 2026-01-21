@@ -7,11 +7,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 )
+
+// closeBody closes an HTTP response body and logs any error.
+// This is used in defers where we can't return the error.
+func closeBody(body io.ReadCloser) {
+	if err := body.Close(); err != nil {
+		log.Printf("Warning: failed to close response body: %v", err)
+	}
+}
 
 // Client is an HTTP client for the OpenCode server API
 type Client struct {
@@ -138,7 +147,7 @@ func (c *Client) GetSession(sessionID string) (*SessionInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -177,7 +186,7 @@ func (c *Client) CreateSession() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create session: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -218,7 +227,7 @@ func (c *Client) SendMessage(sessionID, content string) (*SendMessageResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -337,7 +346,7 @@ func (c *Client) SendMessageAsync(sessionID, content string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send async message: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeBody(resp.Body)
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -394,7 +403,7 @@ func (c *Client) SendMessageStreaming(ctx context.Context, sessionID, content st
 
 	// Start SSE reader goroutine
 	go func() {
-		defer sseResp.Body.Close()
+		defer closeBody(sseResp.Body)
 
 		reader := bufio.NewReader(sseResp.Body)
 		for {
@@ -503,7 +512,7 @@ func (c *Client) SendMessageStreaming(ctx context.Context, sessionID, content st
 	time.Sleep(100 * time.Millisecond)
 
 	if err := c.SendMessageAsync(sessionID, content); err != nil {
-		sseResp.Body.Close() // Close SSE to unblock reader
+		closeBody(sseResp.Body) // Close SSE to unblock reader
 		return nil, err
 	}
 
@@ -514,7 +523,7 @@ func (c *Client) SendMessageStreaming(ctx context.Context, sessionID, content st
 	case err := <-errChan:
 		return nil, err
 	case <-ctx.Done():
-		sseResp.Body.Close() // Close SSE to unblock reader
+		closeBody(sseResp.Body) // Close SSE to unblock reader
 		return nil, ctx.Err()
 	}
 

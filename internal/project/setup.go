@@ -48,8 +48,7 @@ func Setup(opts SetupOptions) (*SetupResult, error) {
 			return nil, fmt.Errorf("invalid project name: %w", err)
 		}
 
-		// Create project directory
-		projectPath = opts.ProjectName
+		// Create project directory - use absolute path or relative to cwd
 		if strings.HasPrefix(opts.ProjectName, "/") || strings.HasPrefix(opts.ProjectName, "~") {
 			projectPath = opts.ProjectName
 		} else {

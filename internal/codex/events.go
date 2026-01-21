@@ -39,7 +39,12 @@ func ParseEvent(event Event) *ParsedEvent {
 
 	case "tool_use":
 		parseToolUse(event, result)
-		result.ToolStatus = "started"
+		// Check for explicit status, default to "started"
+		if status, ok := event["status"].(string); ok && status != "" {
+			result.ToolStatus = status
+		} else {
+			result.ToolStatus = "started"
+		}
 
 	case "tool_result":
 		parseToolResult(event, result)
@@ -169,6 +174,11 @@ func extractTextFromContentArray(contentArr []interface{}) string {
 
 // extractToolTarget extracts the target (file path or command) from tool data
 func extractToolTarget(data map[string]interface{}) string {
+	// Try direct target field first (used by OpenCode runner)
+	if target, ok := data["target"].(string); ok && target != "" {
+		return target
+	}
+
 	// Try arguments field
 	if args, ok := data["arguments"].(map[string]interface{}); ok {
 		if target := extractTargetFromArgs(args); target != "" {
@@ -195,8 +205,8 @@ func extractToolTarget(data map[string]interface{}) string {
 
 // extractTargetFromArgs extracts target from argument map
 func extractTargetFromArgs(args map[string]interface{}) string {
-	// Common argument patterns for file paths
-	for _, key := range []string{"file_path", "path", "filename", "file"} {
+	// Common argument patterns for file paths (both snake_case and camelCase)
+	for _, key := range []string{"file_path", "filePath", "path", "filename", "file"} {
 		if path, ok := args[key].(string); ok && path != "" {
 			return path
 		}

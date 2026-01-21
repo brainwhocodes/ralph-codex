@@ -19,6 +19,9 @@ type Runner interface {
 
 	// SetOutputCallback sets the callback for streaming output events
 	SetOutputCallback(cb OutputCallback)
+
+	// Stop cleans up any resources (e.g., managed servers)
+	Stop() error
 }
 
 // New creates a new runner based on the config backend setting
@@ -47,6 +50,10 @@ func (w *codexWrapper) SetOutputCallback(cb OutputCallback) {
 	})
 }
 
+func (w *codexWrapper) Stop() error {
+	return nil // Codex CLI doesn't need cleanup
+}
+
 // openCodeWrapper wraps opencode.Runner to implement the Runner interface
 type openCodeWrapper struct {
 	runner *opencode.Runner
@@ -60,4 +67,8 @@ func (w *openCodeWrapper) SetOutputCallback(cb OutputCallback) {
 	w.runner.SetOutputCallback(func(event map[string]interface{}) {
 		cb(Event(event))
 	})
+}
+
+func (w *openCodeWrapper) Stop() error {
+	return w.runner.Stop()
 }

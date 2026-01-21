@@ -45,6 +45,26 @@ const (
 	IconDiagonal    = "╱"
 )
 
+// SAX animation frames - musical notes cycle when running
+// All frames have notes - no empty frame to avoid "reverting" effect
+var SaxNotes = []string{
+	"SAX ♩",
+	"SAX ♪",
+	"SAX ♫",
+	"SAX ♬",
+	"SAX ♫",
+	"SAX ♪",
+}
+
+// ThinkingWave - animated thinking indicator
+var ThinkingWave = []string{
+	"∿",
+	"∿∿",
+	"∿∿∿",
+	"∿∿",
+	"∿",
+}
+
 // Theme holds all the semantic color mappings
 type Theme struct {
 	Name string

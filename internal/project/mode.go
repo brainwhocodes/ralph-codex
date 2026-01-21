@@ -50,18 +50,14 @@ var ModeConfigs = []ModeConfig{
 }
 
 // DetectMode determines the project mode based on files present in the directory
+// Priority: Refactor > Fix > Implement (so users can switch to refactor mode easily)
 func DetectMode(dir string) ProjectMode {
 	if dir == "" {
 		dir = "."
 	}
 
-	// Implement mode: PRD.md + IMPLEMENTATION_PLAN.md
-	if fileExistsAt(dir, "PRD.md") && fileExistsAt(dir, "IMPLEMENTATION_PLAN.md") {
-		return ProjectModeImplement
-	}
-
 	// Refactor mode: REFACTOR_PLAN.md (optionally with REFACTOR.md)
-	// Note: Refactor mode only requires the plan file
+	// Check this FIRST so users can switch to refactor mode even if PRD.md exists
 	if fileExistsAt(dir, "REFACTOR_PLAN.md") {
 		return ProjectModeRefactor
 	}
@@ -69,6 +65,11 @@ func DetectMode(dir string) ProjectMode {
 	// Fix mode: PROMPT.md + @fix_plan.md
 	if fileExistsAt(dir, "PROMPT.md") && fileExistsAt(dir, "@fix_plan.md") {
 		return ProjectModeFix
+	}
+
+	// Implement mode: PRD.md + IMPLEMENTATION_PLAN.md
+	if fileExistsAt(dir, "PRD.md") && fileExistsAt(dir, "IMPLEMENTATION_PLAN.md") {
+		return ProjectModeImplement
 	}
 
 	return ProjectModeUnknown

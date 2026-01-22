@@ -309,7 +309,7 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 		return fmt.Errorf("failed to load prompt: %w", err)
 	}
 
-	tasks, err := LoadFixPlan()
+	tasks, planFile, err := LoadFixPlanWithFile()
 	if err != nil {
 		c.emitLog(LogLevelError, fmt.Sprintf("Failed to load fix plan: %v", err))
 		c.emitUpdate("error")
@@ -325,7 +325,7 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 		}
 	}
 
-	loopContext, err := BuildContext(c.loopNum+1, remainingTasks, circuitState, c.lastOutput)
+	loopContext, err := BuildContextWithPlanFile(c.loopNum+1, remainingTasks, circuitState, c.lastOutput, planFile)
 	if err != nil {
 		c.emitLog(LogLevelError, fmt.Sprintf("Failed to build context: %v", err))
 		c.emitUpdate("error")

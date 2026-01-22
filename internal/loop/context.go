@@ -11,6 +11,12 @@ import (
 
 // LoadFixPlan loads remaining tasks from the plan file based on detected project mode
 func LoadFixPlan() ([]string, error) {
+	tasks, _, err := LoadFixPlanWithFile()
+	return tasks, err
+}
+
+// LoadFixPlanWithFile loads tasks and returns the plan file path
+func LoadFixPlanWithFile() ([]string, string, error) {
 	// Detect mode and get the appropriate plan file
 	mode := DetectProjectMode()
 	planFile := GetPlanFileForMode(mode)
@@ -32,15 +38,16 @@ func LoadFixPlan() ([]string, error) {
 	}
 
 	if planFile == "" {
-		return nil, fmt.Errorf("failed to find plan file - need REFACTOR_PLAN.md, IMPLEMENTATION_PLAN.md, or @fix_plan.md")
+		return nil, "", fmt.Errorf("failed to find plan file - need REFACTOR_PLAN.md, IMPLEMENTATION_PLAN.md, or @fix_plan.md")
 	}
 
 	data, err := os.ReadFile(planFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read plan file %s: %w", planFile, err)
+		return nil, planFile, fmt.Errorf("failed to read plan file %s: %w", planFile, err)
 	}
 
-	return parseTasksFromPlan(string(data), planFile)
+	tasks, err := parseTasksFromPlan(string(data), planFile)
+	return tasks, planFile, err
 }
 
 // parseTasksFromPlan extracts checklist tasks from a plan file
@@ -145,14 +152,29 @@ func GetPrompt() (string, error) {
 
 // BuildContext builds loop context for Codex
 func BuildContext(loopNum int, remainingTasks []string, circuitState string, prevSummary string) (string, error) {
+	return BuildContextWithPlanFile(loopNum, remainingTasks, circuitState, prevSummary, "")
+}
+
+// BuildContextWithPlanFile builds loop context with explicit plan file path
+func BuildContextWithPlanFile(loopNum int, remainingTasks []string, circuitState string, prevSummary string, planFile string) (string, error) {
 	var ctxBuilder strings.Builder
 
 	ctxBuilder.WriteString("\n--- RALPH LOOP CONTEXT ---\n")
 	fmt.Fprintf(&ctxBuilder, "Loop: %d\n", loopNum)
 	fmt.Fprintf(&ctxBuilder, "Circuit Breaker: %s\n", circuitState)
 
+	// Determine plan file name for instructions
+	if planFile == "" {
+		planFile = "REFACTOR_PLAN.md, IMPLEMENTATION_PLAN.md, or @fix_plan.md"
+	}
+
+	// CRITICAL instruction at the top
+	ctxBuilder.WriteString("\n** CRITICAL: MARK COMPLETED TASKS **\n")
+	fmt.Fprintf(&ctxBuilder, "After completing each task, you MUST edit %s to change `- [ ]` to `- [x]`\n", planFile)
+	ctxBuilder.WriteString("This is how Ralph tracks progress. Tasks not marked [x] will be repeated!\n")
+
 	if len(remainingTasks) > 0 && len(remainingTasks) <= 5 {
-		ctxBuilder.WriteString("\nRemaining Tasks:\n")
+		ctxBuilder.WriteString("\nRemaining Tasks (not yet marked [x]):\n")
 		for i, task := range remainingTasks {
 			fmt.Fprintf(&ctxBuilder, "  %d. %s\n", i+1, task)
 		}
@@ -164,9 +186,10 @@ func BuildContext(loopNum int, remainingTasks []string, circuitState string, pre
 	}
 
 	// Add task completion and status reporting reminder
-	ctxBuilder.WriteString("\n** IMPORTANT REMINDERS **\n")
-	ctxBuilder.WriteString("1. Update the plan file: change `- [ ]` to `- [x]` for completed tasks\n")
-	ctxBuilder.WriteString("2. End your response with a RALPH_STATUS block:\n")
+	ctxBuilder.WriteString("\n** WORKFLOW REQUIREMENTS **\n")
+	ctxBuilder.WriteString("1. Work on ONE task from the plan\n")
+	fmt.Fprintf(&ctxBuilder, "2. After completing the task, EDIT %s to mark it `- [x]`\n", planFile)
+	ctxBuilder.WriteString("3. End your response with a RALPH_STATUS block:\n")
 	ctxBuilder.WriteString("---RALPH_STATUS---\n")
 	ctxBuilder.WriteString("STATUS: WORKING | COMPLETE | BLOCKED\n")
 	ctxBuilder.WriteString("CURRENT_TASK: <exact text of task you just completed or are working on>\n")

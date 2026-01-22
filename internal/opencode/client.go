@@ -399,7 +399,7 @@ func (c *Client) SendMessageStreaming(ctx context.Context, sessionID, content st
 	done := make(chan struct{})
 	errChan := make(chan error, 1)
 	retryCount := 0
-	maxRetries := 20 // Maximum number of API retries before giving up
+	maxRetries := 50 // Maximum number of API retries before giving up (long for npm tests, etc.)
 
 	// Start SSE reader goroutine
 	go func() {
@@ -477,9 +477,29 @@ func (c *Client) SendMessageStreaming(ctx context.Context, sessionID, content st
 								return
 							}
 						case "error":
+							errMsg := props.Status.Message
+							// Check if this is a tool execution error vs a fatal error
+							// Tool errors (like npm test failures) should be reported but not
+							// necessarily terminate the session
+							if strings.Contains(errMsg, "rate limit") || strings.Contains(errMsg, "timeout") {
+								// These are retriable errors - increment retry count
+								retryCount++
+								if retryCount > maxRetries {
+									mu.Unlock()
+									select {
+									case errChan <- fmt.Errorf("session error after %d retries: %s", retryCount, errMsg):
+									default:
+									}
+									return
+								}
+								// Continue waiting for recovery
+								mu.Unlock()
+								continue
+							}
+							// Non-retriable error
 							mu.Unlock()
 							select {
-							case errChan <- fmt.Errorf("session error: %s", props.Status.Message):
+							case errChan <- fmt.Errorf("session error: %s", errMsg):
 							default:
 							}
 							return

@@ -34,7 +34,7 @@ type Runner struct {
 func NewRunner(cfg config.Config) *Runner {
 	timeout := time.Duration(cfg.Timeout) * time.Second
 	if timeout == 0 {
-		timeout = 10 * time.Minute // Default timeout for streaming
+		timeout = 30 * time.Minute // Default timeout for streaming (long for npm tests, etc.)
 	}
 
 	runner := &Runner{

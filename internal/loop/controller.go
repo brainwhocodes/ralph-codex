@@ -258,6 +258,8 @@ func (c *Controller) Run(ctx stdcontext.Context) error {
 				c.emitUpdate("error")
 				// Don't return on error - start a new loop iteration instead
 				// This handles message.error and other transient failures
+				c.emitLog(LogLevelInfo, "Waiting 5s before retrying...")
+				time.Sleep(5 * time.Second)
 				c.emitLog(LogLevelInfo, "Starting new loop iteration after error...")
 				c.loopNum++
 				continue

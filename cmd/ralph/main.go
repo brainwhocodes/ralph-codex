@@ -114,6 +114,8 @@ func main() {
 		handleStatusCommand(projectDir)
 	case "reset-circuit":
 		handleResetCircuitCommand(projectDir)
+	case "sync":
+		handleSyncCommand(projectDir, verbose)
 	case "run", "help", "version":
 		handleSubcommands(command, projectDir, promptFile, maxCalls, timeout, useMonitor, verbose, backend, ocSettings, logFormat)
 	default:
@@ -398,6 +400,60 @@ func handleResetCircuitCommand(projectPath string) {
 	fmt.Println("  ralph --monitor")
 }
 
+func handleSyncCommand(projectPath string, verbose bool) {
+	if err := os.Chdir(projectPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Error changing to project directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("🔄 Checking task status against filesystem...")
+
+	result, err := loop.SyncTasksWithFilesystem(projectPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error syncing tasks: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(result.Evidence) == 0 {
+		fmt.Println("   No task evidence found")
+		fmt.Println("\n   Note: Sync looks for:")
+		fmt.Println("   - Test config files (vitest.config.ts, jest.config.ts)")
+		fmt.Println("   - New files created by 'Add'/'Create' tasks")
+		return
+	}
+
+	fmt.Printf("   Plan file: %s\n", result.PlanFile)
+	fmt.Println("\n   Evidence found:")
+	for _, ev := range result.Evidence {
+		status := "❓"
+		if ev.ShouldMark {
+			status = "✅"
+		}
+		taskPreview := ev.TaskText
+		if len(taskPreview) > 60 {
+			taskPreview = taskPreview[:60] + "..."
+		}
+		fmt.Printf("   %s %s\n", status, taskPreview)
+		for _, f := range ev.FilesFound {
+			fmt.Printf("      └─ %s\n", f)
+		}
+		if ev.Reason != "" {
+			fmt.Printf("      └─ %s (%.0f%% confidence)\n", ev.Reason, ev.Confidence*100)
+		}
+	}
+
+	if result.TasksUpdated > 0 {
+		fmt.Printf("\n   Auto-marking %d task(s) with high confidence...\n", result.TasksUpdated)
+		if err := loop.ApplySyncResult(result); err != nil {
+			fmt.Fprintf(os.Stderr, "Error updating plan file: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("   ✅ Plan file updated")
+	} else {
+		fmt.Println("\n   No tasks auto-marked (use the plan file to manually mark tasks as [x])")
+	}
+}
+
 func handleRunCommand(projectPath string, promptFile string, maxCalls int, timeout int, useMonitor bool, verbose bool, backend string, ocSettings openCodeSettings, logFormat string) {
 	if err := os.Chdir(projectPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Error changing to project directory: %v\n", err)
@@ -647,6 +703,7 @@ func isCommand(arg string) bool {
 		"setup":         true,
 		"import":        true,
 		"status":        true,
+		"sync":          true,
 		"reset-circuit": true,
 		"help":          true,
 		"version":       true,
@@ -684,6 +741,7 @@ func printHelp() {
 	fmt.Println("  setup              Create a new Ralph-managed project")
 	fmt.Println("  import             Import PRD or specification document")
 	fmt.Println("  status             Show project status")
+	fmt.Println("  sync               Sync task status with filesystem (detect completed tasks)")
 	fmt.Println("  reset-circuit      Reset circuit breaker state")
 	fmt.Println("  help               Show this help")
 	fmt.Println("  version            Show version")

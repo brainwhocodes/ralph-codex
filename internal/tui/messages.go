@@ -41,3 +41,27 @@ type TaskFailedMsg struct {
 type ViewModeMsg struct {
 	Mode string // "split", "tasks", "output", "logs"
 }
+
+// PreflightMsg carries preflight check summary from loop controller
+type PreflightMsg struct {
+	Mode           string
+	PlanFile       string
+	TotalTasks     int
+	RemainingCount int
+	RemainingTasks []string
+	CircuitState   string
+	RateLimitOK    bool
+	CallsRemaining int
+	ShouldSkip     bool
+	SkipReason     string
+}
+
+// LoopOutcomeMsg carries loop iteration outcome from loop controller
+type LoopOutcomeMsg struct {
+	Success        bool
+	TasksCompleted int
+	FilesModified  int
+	TestsStatus    string
+	ExitSignal     bool
+	Error          string
+}

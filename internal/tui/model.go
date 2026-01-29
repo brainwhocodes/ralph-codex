@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/loop"
+	"github.com/brainwhocodes/lisa-loop/internal/loop"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -77,6 +77,13 @@ type Task struct {
 	Active    bool // Currently being worked on
 }
 
+// Phase represents a group of tasks (matches tui/program.go Phase)
+type Phase struct {
+	Name      string
+	Tasks     []Task
+	Completed bool
+}
+
 // ViewMode represents the current view mode
 type ViewMode string
 
@@ -107,7 +114,9 @@ type Model struct {
 	tick          int    // Animation tick counter
 	width         int    // Terminal width
 	height        int    // Terminal height
-	tasks         []Task           // Tasks from plan file
+	tasks         []Task           // Tasks from plan file (flat list for backward compat)
+	phases        []Phase          // Tasks grouped by phase
+	currentPhase  int              // Index of current phase being worked on
 	planFile      string           // Name of loaded plan file (e.g., REFACTOR_PLAN.md)
 	projectMode   loop.ProjectMode // Current project mode (implementation, refactor, fix)
 	activity      string           // Current activity description
@@ -142,6 +151,22 @@ type Model struct {
 	contextLimit        int     // Context window limit
 	contextThreshold    bool    // True if threshold reached
 	contextWasCompacted bool    // True if OpenCode compacted
+
+	// Preflight summary (from preflight check)
+	preflightMode           string
+	preflightPlanFile       string
+	preflightTotalTasks     int
+	preflightRemainingCount int
+	preflightRemainingTasks []string
+	preflightCircuitState   string
+	preflightRateLimitOK    bool
+	preflightCallsRemaining int
+	preflightShouldSkip     bool
+	preflightSkipReason     string
+
+	// Loop outcome (from last iteration)
+	lastOutcome        *loop.LoopOutcome
+	totalTasksCompleted int // Cumulative tasks completed
 }
 
 // Init initializes model
@@ -345,6 +370,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.contextLimit = event.ContextLimit
 			m.contextThreshold = event.ContextThreshold
 			m.contextWasCompacted = event.ContextWasCompacted
+
+		case loop.EventTypePreflight:
+			// Update preflight summary
+			if event.Preflight != nil {
+				m.preflightMode = event.Preflight.Mode
+				m.preflightPlanFile = event.Preflight.PlanFile
+				m.preflightTotalTasks = event.Preflight.TotalTasks
+				m.preflightRemainingCount = event.Preflight.RemainingCount
+				m.preflightRemainingTasks = event.Preflight.RemainingTasks
+				m.preflightCircuitState = event.Preflight.CircuitState
+				m.preflightRateLimitOK = event.Preflight.RateLimitOK
+				m.preflightCallsRemaining = event.Preflight.CallsRemaining
+				m.preflightShouldSkip = event.Preflight.ShouldSkip
+				m.preflightSkipReason = event.Preflight.SkipReason
+
+				// Log preflight info
+				m.addLog(string(loop.LogLevelInfo), fmt.Sprintf("Preflight: %d/%d tasks remaining", event.Preflight.RemainingCount, event.Preflight.TotalTasks))
+				if event.Preflight.ShouldSkip {
+					m.addLog(string(loop.LogLevelWarn), fmt.Sprintf("Skip reason: %s", event.Preflight.SkipReason))
+				}
+			}
+
+		case loop.EventTypeOutcome:
+			// Update loop outcome
+			if event.Outcome != nil {
+				m.lastOutcome = event.Outcome
+				if event.Outcome.Success {
+					m.totalTasksCompleted += event.Outcome.TasksCompleted
+					m.addLog(string(loop.LogLevelInfo), fmt.Sprintf("Loop outcome: %d tasks completed, %d files modified",
+						event.Outcome.TasksCompleted, event.Outcome.FilesModified))
+				} else {
+					m.addLog(string(loop.LogLevelError), fmt.Sprintf("Loop failed: %s", event.Outcome.Error))
+				}
+			}
 		}
 		return m, nil
 
@@ -485,6 +544,7 @@ func (m *Model) updateActiveTask() {
 }
 
 // updateTaskByText finds a task by partial text match and updates its status
+// Searches both flat tasks and phase-grouped tasks
 func (m *Model) updateTaskByText(taskText string, completed bool) {
 	if taskText == "" {
 		return
@@ -493,7 +553,43 @@ func (m *Model) updateTaskByText(taskText string, completed bool) {
 	// Normalize for matching
 	taskTextLower := strings.ToLower(strings.TrimSpace(taskText))
 
-	// Find best matching task
+	// Search in phases first (preferred)
+	if len(m.phases) > 0 {
+		for phaseIdx := range m.phases {
+			for taskIdx, task := range m.phases[phaseIdx].Tasks {
+				taskLower := strings.ToLower(task.Text)
+
+				// Check for match
+				isMatch := taskLower == taskTextLower ||
+					strings.Contains(taskLower, taskTextLower) ||
+					strings.Contains(taskTextLower, taskLower)
+
+				if isMatch {
+					if completed {
+						m.phases[phaseIdx].Tasks[taskIdx].Completed = true
+						m.phases[phaseIdx].Tasks[taskIdx].Active = false
+						m.addLog(string(loop.LogLevelSuccess), fmt.Sprintf("✓ %s", task.Text))
+						// Update phase completion status
+						m.updatePhaseCompletion()
+					} else {
+						// Mark as active
+						m.clearActiveFlags()
+						m.phases[phaseIdx].Tasks[taskIdx].Active = true
+						// Calculate global index
+						globalIdx := 0
+						for i := 0; i < phaseIdx; i++ {
+							globalIdx += len(m.phases[i].Tasks)
+						}
+						globalIdx += taskIdx
+						m.activeTaskIdx = globalIdx
+					}
+					return
+				}
+			}
+		}
+	}
+
+	// Fallback to flat task list
 	bestIdx := -1
 	bestScore := 0
 
@@ -506,7 +602,7 @@ func (m *Model) updateTaskByText(taskText string, completed bool) {
 			break
 		}
 
-		// Partial match - check if task text contains the reported text or vice versa
+		// Partial match
 		score := 0
 		if strings.Contains(taskLower, taskTextLower) {
 			score = len(taskTextLower)
@@ -525,15 +621,61 @@ func (m *Model) updateTaskByText(taskText string, completed bool) {
 			m.tasks[bestIdx].Completed = true
 			m.tasks[bestIdx].Active = false
 			m.addLog(string(loop.LogLevelSuccess), fmt.Sprintf("✓ %s", m.tasks[bestIdx].Text))
-			// Activate next incomplete task
 			m.updateActiveTask()
 		} else {
-			// Mark as active (working on it)
-			for i := range m.tasks {
-				m.tasks[i].Active = (i == bestIdx)
-			}
+			m.clearActiveFlags()
+			m.tasks[bestIdx].Active = true
 			m.activeTaskIdx = bestIdx
 		}
+	}
+}
+
+// clearActiveFlags clears all active flags on tasks
+func (m *Model) clearActiveFlags() {
+	for i := range m.tasks {
+		m.tasks[i].Active = false
+	}
+	for phaseIdx := range m.phases {
+		for taskIdx := range m.phases[phaseIdx].Tasks {
+			m.phases[phaseIdx].Tasks[taskIdx].Active = false
+		}
+	}
+}
+
+// updatePhaseCompletion checks and updates phase completion status
+// Auto-advances to next phase when current is complete
+func (m *Model) updatePhaseCompletion() {
+	for phaseIdx := range m.phases {
+		allComplete := true
+		for _, task := range m.phases[phaseIdx].Tasks {
+			if !task.Completed {
+				allComplete = false
+				break
+			}
+		}
+		wasComplete := m.phases[phaseIdx].Completed
+		m.phases[phaseIdx].Completed = allComplete
+
+		// Log phase completion
+		if allComplete && !wasComplete {
+			m.addLog(string(loop.LogLevelSuccess), fmt.Sprintf("✓ Phase complete: %s", m.phases[phaseIdx].Name))
+		}
+	}
+
+	// Update currentPhase to first incomplete phase
+	for i, phase := range m.phases {
+		if !phase.Completed {
+			if m.currentPhase != i {
+				m.currentPhase = i
+				m.addLog(string(loop.LogLevelInfo), fmt.Sprintf("→ Starting: %s", phase.Name))
+			}
+			return
+		}
+	}
+
+	// All phases complete
+	if len(m.phases) > 0 {
+		m.currentPhase = len(m.phases) - 1
 	}
 }
 

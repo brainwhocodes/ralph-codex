@@ -26,7 +26,7 @@ type SetupResult struct {
 	Success        bool
 }
 
-// Setup creates a new Ralph-managed project
+// Setup creates a new Lisa-managed project
 func Setup(opts SetupOptions) (*SetupResult, error) {
 	var projectPath string
 
@@ -176,9 +176,12 @@ func createTemplateFiles(projectPath, templateDir string, skipFiles map[string]b
 	if strings.HasPrefix(templateDir, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get home directory: %w", err)
+			// If we can't get home directory, skip custom template lookup
+			// and use embedded defaults instead
+			templateDir = ""
+		} else {
+			templateDir = filepath.Join(home, templateDir[2:])
 		}
-		templateDir = filepath.Join(home, templateDir[2:])
 	}
 
 	// Template files to create
@@ -239,7 +242,7 @@ func initGitRepo(projectPath string) error {
 
 	// Create .gitignore
 	gitignorePath := filepath.Join(projectPath, ".gitignore")
-	gitignoreContent := `# Ralph Codex
+	gitignoreContent := `# Lisa Codex
 .ralph_session
 .circuit_breaker_state
 .exit_signals
@@ -276,13 +279,13 @@ Thumbs.db
 func createREADME(path, projectName string) error {
 	builder := &strings.Builder{}
 	builder.WriteString("# " + projectName + "\n\n")
-	builder.WriteString("This is a Ralph Codex managed project.\n\n")
+	builder.WriteString("This is a Lisa Codex managed project.\n\n")
 	builder.WriteString("## Getting Started\n\n")
-	builder.WriteString("Ralph Codex autonomously develops software based on specifications in:\n")
+	builder.WriteString("Lisa Codex autonomously develops software based on specifications in:\n")
 	builder.WriteString("- PROMPT.md - Main development instructions\n")
 	builder.WriteString("- @fix_plan.md - Prioritized task list\n")
 	builder.WriteString("- @AGENT.md - Build and run instructions\n\n")
-	builder.WriteString("## Running Ralph\n\n")
+	builder.WriteString("## Running Lisa\n\n")
 	builder.WriteString("To start the autonomous development loop:\n\n")
 	builder.WriteString("```bash\n")
 	builder.WriteString("ralph\n")
@@ -296,10 +299,10 @@ func createREADME(path, projectName string) error {
 	builder.WriteString("- examples/ - Usage examples\n")
 	builder.WriteString("- specs/ - Project specifications\n")
 	builder.WriteString("- docs/ - Documentation\n")
-	builder.WriteString("- logs/ - Ralph execution logs\n")
+	builder.WriteString("- logs/ - Lisa execution logs\n")
 	builder.WriteString("- docs/generated/ - Auto-generated documentation\n\n")
 	builder.WriteString("## Status\n\n")
-	builder.WriteString("Ralph manages the development cycle. Check @fix_plan.md for current progress.\n")
+	builder.WriteString("Lisa manages the development cycle. Check @fix_plan.md for current progress.\n")
 
 	return os.WriteFile(path, []byte(builder.String()), 0644)
 }
@@ -339,7 +342,7 @@ func executeCommand(cmd string) error {
 	return commandRunner.Run(cmd)
 }
 
-// ValidateProject checks if current directory is a valid Ralph project
+// ValidateProject checks if current directory is a valid Lisa project
 // Delegates to the unified ValidateProjectDir function
 func ValidateProject() error {
 	return ValidateProjectDir(".")
@@ -356,7 +359,7 @@ func GetProjectRoot() (string, error) {
 // defaultPromptTemplate returns default PROMPT.md content
 func defaultPromptTemplate() string {
 	builder := &strings.Builder{}
-	builder.WriteString("# Ralph Codex Development Instructions\n\n")
+	builder.WriteString("# Lisa Codex Development Instructions\n\n")
 	builder.WriteString("You are an autonomous AI developer working on this project.\n\n")
 	builder.WriteString("## Project Goals\n\n")
 	builder.WriteString("[Describe what this project should accomplish]\n\n")
@@ -377,7 +380,7 @@ func defaultPromptTemplate() string {
 	builder.WriteString("## Tech Stack\n\n")
 	builder.WriteString("[List your technologies here]\n\n")
 	builder.WriteString("## Status Reporting (REQUIRED)\n\n")
-	builder.WriteString("You MUST end every response with a RALPH_STATUS block. This tells Ralph whether to continue or stop.\n\n")
+	builder.WriteString("You MUST end every response with a RALPH_STATUS block. This tells Lisa whether to continue or stop.\n\n")
 	builder.WriteString("```\n")
 	builder.WriteString("---RALPH_STATUS---\n")
 	builder.WriteString("STATUS: WORKING | COMPLETE | BLOCKED\n")
@@ -404,7 +407,7 @@ func defaultPromptTemplate() string {
 // defaultFixPlanTemplate returns default @fix_plan.md content
 func defaultFixPlanTemplate() string {
 	builder := &strings.Builder{}
-	builder.WriteString("# Ralph Development Task List\n\n")
+	builder.WriteString("# Lisa Development Task List\n\n")
 	builder.WriteString("**IMPORTANT**: Mark tasks complete by changing `- [ ]` to `- [x]` as you finish them.\n")
 	builder.WriteString("When ALL tasks are marked [x], set EXIT_SIGNAL: true in your RALPH_STATUS block.\n\n")
 	builder.WriteString("## Phase 1: Initial Setup\n")

@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/brainwhocodes/ralph-codex/internal/codex"
+	"github.com/brainwhocodes/lisa-loop/internal/codex"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/log"
 )
@@ -219,6 +219,40 @@ func RunCodex(opts CodexOptions) (*CodexResult, error) {
 	}
 
 	return result, nil
+}
+
+// ParseCodexJSONL parses JSONL output from Codex with a large buffer
+// Returns a slice of parsed events (raw JSON objects)
+// This is useful for processing Codex output programmatically
+func ParseCodexJSONL(r io.Reader) ([]codex.Event, error) {
+	const maxScannerBuffer = 1024 * 1024 // 1MB buffer for large JSONL lines
+
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, maxScannerBuffer), maxScannerBuffer)
+
+	var events []codex.Event
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		// Try to parse as JSON
+		var event codex.Event
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			// Skip non-JSON lines (might be raw output)
+			continue
+		}
+
+		events = append(events, event)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return events, fmt.Errorf("error reading JSONL: %w", err)
+	}
+
+	return events, nil
 }
 
 // RunCodexSimple is a convenience wrapper that runs Codex and returns just the content

@@ -14,6 +14,8 @@ const (
 	EventTypeCodexTool      EventType = "codex_tool"
 	EventTypeAnalysis       EventType = "analysis"      // RALPH_STATUS analysis results
 	EventTypeContextUsage   EventType = "context_usage" // Context window usage tracking
+	EventTypePreflight      EventType = "preflight"     // Preflight check summary
+	EventTypeOutcome        EventType = "outcome"       // Loop iteration outcome
 )
 
 // LogLevel represents the severity level of a log entry

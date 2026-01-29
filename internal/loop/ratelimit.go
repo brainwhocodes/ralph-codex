@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/state"
+	"github.com/brainwhocodes/lisa-loop/internal/state"
 )
 
 // RateLimiter tracks API calls per hour

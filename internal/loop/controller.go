@@ -6,16 +6,30 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/analysis"
-	"github.com/brainwhocodes/ralph-codex/internal/circuit"
-	"github.com/brainwhocodes/ralph-codex/internal/codex"
-	"github.com/brainwhocodes/ralph-codex/internal/config"
-	"github.com/brainwhocodes/ralph-codex/internal/runner"
-	"github.com/brainwhocodes/ralph-codex/internal/state"
+	"github.com/brainwhocodes/lisa-loop/internal/analysis"
+	"github.com/brainwhocodes/lisa-loop/internal/circuit"
+	"github.com/brainwhocodes/lisa-loop/internal/codex"
+	"github.com/brainwhocodes/lisa-loop/internal/config"
+	"github.com/brainwhocodes/lisa-loop/internal/runner"
+	"github.com/brainwhocodes/lisa-loop/internal/state"
 )
 
 // Config is an alias to the unified config type
 type Config = config.Config
+
+// PreflightSummary holds preflight check information
+type PreflightSummary struct {
+	Mode           string   // Project mode (fix, implement, refactor)
+	PlanFile       string   // Path to the plan file
+	TotalTasks     int      // Total number of tasks
+	RemainingCount int      // Number of remaining tasks
+	RemainingTasks []string // First N remaining tasks
+	CircuitState   string   // Circuit breaker state
+	RateLimitOK    bool     // Whether rate limit allows a call
+	CallsRemaining int      // Number of calls remaining
+	ShouldSkip     bool     // Whether loop should be skipped
+	SkipReason     string   // Reason for skipping (if ShouldSkip is true)
+}
 
 // LoopEvent represents an event from the loop controller
 type LoopEvent struct {
@@ -50,12 +64,28 @@ type LoopEvent struct {
 	ContextLimit         int     // Context window limit
 	ContextThreshold     bool    // True if threshold reached
 	ContextWasCompacted  bool    // True if OpenCode compacted the session
+
+	// Preflight summary
+	Preflight *PreflightSummary
+
+	// Loop outcome
+	Outcome *LoopOutcome
+}
+
+// LoopOutcome represents the result of a loop iteration
+type LoopOutcome struct {
+	Success        bool
+	TasksCompleted int
+	FilesModified  int
+	TestsStatus    string
+	ExitSignal     bool
+	Error          string
 }
 
 // EventCallback is called when the controller has an update
 type EventCallback func(event LoopEvent)
 
-// Controller manages the main Ralph loop
+// Controller manages the main Lisa loop
 type Controller struct {
 	config        ControllerConfig
 	rateLimiter   *RateLimiter
@@ -67,6 +97,12 @@ type Controller struct {
 	eventCallback EventCallback
 	paused        bool
 	backend       string
+
+	// Cached plan state (refreshed each loop iteration)
+	cachedMode      ProjectMode
+	cachedPlanFile  string
+	cachedTasks     []string
+	cacheValid      bool
 }
 
 // ControllerConfig holds configuration for the loop controller
@@ -109,6 +145,15 @@ func NewController(cfg Config, rateLimiter *RateLimiter, breaker *circuit.Breake
 // SetEventCallback sets the callback for loop events
 func (c *Controller) SetEventCallback(cb EventCallback) {
 	c.eventCallback = cb
+}
+
+// SetRunner injects a custom runner for testing
+func (c *Controller) SetRunner(r runner.Runner) {
+	c.runner = r
+	// Set up output callback for the new runner
+	r.SetOutputCallback(func(event runner.Event) {
+		c.handleCodexEvent(codex.Event(event))
+	})
 }
 
 // emit sends an event to the callback if set
@@ -189,6 +234,23 @@ func (c *Controller) emitAnalysis(result *analysis.Analysis) {
 	c.emit(event)
 }
 
+// emitPreflight sends a preflight summary event
+func (c *Controller) emitPreflight(summary *PreflightSummary) {
+	c.emit(LoopEvent{
+		Type:       EventTypePreflight,
+		LoopNumber: c.loopNum,
+		Preflight:  summary,
+	})
+}
+
+// emitOutcome sends a loop outcome event
+func (c *Controller) emitOutcome(outcome *LoopOutcome) {
+	c.emit(LoopEvent{
+		Type:     EventTypeOutcome,
+		Outcome:  outcome,
+	})
+}
+
 // emitContextUsage sends context window usage event
 func (c *Controller) emitContextUsage(usagePercent float64, totalTokens, limit int, thresholdReached, wasCompacted bool) {
 	c.emit(LoopEvent{
@@ -226,7 +288,7 @@ func (c *Controller) Stop() {
 
 // Run executes the main loop
 func (c *Controller) Run(ctx stdcontext.Context) error {
-	c.emitLog(LogLevelInfo, fmt.Sprintf("Starting Ralph Codex loop (max %d calls)", c.config.MaxLoops))
+	c.emitLog(LogLevelInfo, fmt.Sprintf("Starting Lisa Codex loop (max %d calls)", c.config.MaxLoops))
 	c.emitUpdate("starting")
 
 	for {
@@ -250,6 +312,17 @@ func (c *Controller) Run(ctx stdcontext.Context) error {
 		default:
 			c.emitUpdate("running")
 
+			// Preflight check before executing loop
+			preflight, shouldSkip := c.RunPreflight()
+			c.emitPreflight(preflight)
+
+			if shouldSkip {
+				c.emitLog(LogLevelInfo, fmt.Sprintf("Skipped: %s", preflight.SkipReason))
+				c.emitUpdate("skipped")
+				c.shouldStop = true
+				return nil
+			}
+
 			// Execute one iteration
 			err := c.ExecuteLoop(ctx)
 
@@ -267,7 +340,7 @@ func (c *Controller) Run(ctx stdcontext.Context) error {
 
 			// Check if we should stop
 			if c.ShouldContinue() {
-				c.emitLog(LogLevelSuccess, fmt.Sprintf("Ralph Codex loop complete after %d iterations", c.loopNum))
+				c.emitLog(LogLevelSuccess, fmt.Sprintf("Lisa Codex loop complete after %d iterations", c.loopNum))
 				c.emitUpdate("complete")
 				return nil
 			}
@@ -275,6 +348,96 @@ func (c *Controller) Run(ctx stdcontext.Context) error {
 			c.loopNum++
 		}
 	}
+}
+
+// refreshPlanCache reloads plan data once per loop iteration
+func (c *Controller) refreshPlanCache() {
+	c.cachedMode = DetectProjectMode()
+	tasks, planFile, err := LoadPlanWithFile()
+	if err != nil {
+		c.cachedTasks = nil
+		c.cachedPlanFile = ""
+	} else {
+		c.cachedTasks = tasks
+		c.cachedPlanFile = planFile
+	}
+	c.cacheValid = true
+}
+
+// RunPreflight performs preflight checks and returns a summary
+func (c *Controller) RunPreflight() (*PreflightSummary, bool) {
+	// Refresh cache if needed
+	if !c.cacheValid {
+		c.refreshPlanCache()
+	}
+
+	// Get project mode and plan info from cache
+	mode := c.cachedMode
+	tasks := c.cachedTasks
+	planFile := c.cachedPlanFile
+
+	// Check if plan was loaded successfully
+	if tasks == nil {
+		return &PreflightSummary{
+			Mode:       string(mode),
+			PlanFile:   "",
+			ShouldSkip: true,
+			SkipReason: "No plan file found",
+		}, true
+	}
+
+	// Count remaining tasks
+	remainingTasks := []string{}
+	for _, task := range tasks {
+		if !strings.HasPrefix(task, "[x]") {
+			remainingTasks = append(remainingTasks, task)
+		}
+	}
+
+	// Get circuit breaker state
+	circuitState := c.breaker.GetState().String()
+
+	// Get rate limit status
+	rateLimitOK := c.rateLimiter.CanMakeCall()
+	callsRemaining := c.rateLimiter.CallsRemaining()
+
+	// Determine if we should skip
+	shouldSkip := false
+	skipReason := ""
+
+	if len(remainingTasks) == 0 {
+		shouldSkip = true
+		skipReason = "All tasks complete"
+	} else if c.breaker.ShouldHalt() {
+		shouldSkip = true
+		skipReason = "Circuit breaker is OPEN"
+	} else if !rateLimitOK {
+		shouldSkip = true
+		skipReason = fmt.Sprintf("Rate limit exhausted (%d calls remaining)", callsRemaining)
+	} else if c.loopNum >= c.config.MaxLoops {
+		shouldSkip = true
+		skipReason = fmt.Sprintf("Max loops reached (%d)", c.config.MaxLoops)
+	}
+
+	// Get first N remaining tasks for display
+	maxTasksToShow := 5
+	tasksToShow := remainingTasks
+	if len(remainingTasks) > maxTasksToShow {
+		tasksToShow = remainingTasks[:maxTasksToShow]
+	}
+
+	return &PreflightSummary{
+		Mode:           string(mode),
+		PlanFile:       planFile,
+		TotalTasks:     len(tasks),
+		RemainingCount: len(remainingTasks),
+		RemainingTasks: tasksToShow,
+		CircuitState:   circuitState,
+		RateLimitOK:    rateLimitOK,
+		CallsRemaining: callsRemaining,
+		ShouldSkip:     shouldSkip,
+		SkipReason:     skipReason,
+	}, shouldSkip
 }
 
 // ExecuteLoop executes a single loop iteration
@@ -301,7 +464,10 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 		return fmt.Errorf("circuit breaker is OPEN, halting execution")
 	}
 
-	// Load prompt and fix plan
+	// Refresh plan cache for this iteration
+	c.refreshPlanCache()
+
+	// Load prompt
 	prompt, err := GetPrompt()
 	if err != nil {
 		c.emitLog(LogLevelError, fmt.Sprintf("Failed to load prompt: %v", err))
@@ -309,11 +475,13 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 		return fmt.Errorf("failed to load prompt: %w", err)
 	}
 
-	tasks, planFile, err := LoadFixPlanWithFile()
-	if err != nil {
-		c.emitLog(LogLevelError, fmt.Sprintf("Failed to load fix plan: %v", err))
+	// Use cached plan data
+	tasks := c.cachedTasks
+	planFile := c.cachedPlanFile
+	if tasks == nil {
+		c.emitLog(LogLevelError, "Failed to load plan: no plan file found")
 		c.emitUpdate("error")
-		return fmt.Errorf("failed to load fix plan: %w", err)
+		return fmt.Errorf("failed to load plan: no plan file found")
 	}
 
 	// Build context
@@ -359,7 +527,19 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 		}
 		c.emitLog(LogLevelError, fmt.Sprintf("Codex execution failed: %v", err))
 		c.emitUpdate("execution_error")
+
+		// Emit outcome event for error case
+		c.emitOutcome(&LoopOutcome{
+			Success: false,
+			Error:   err.Error(),
+		})
+
 		return err
+	}
+
+	// Record successful call in rate limiter
+	if rlErr := c.rateLimiter.RecordCall(); rlErr != nil {
+		c.emitLog(LogLevelWarn, fmt.Sprintf("Failed to record call: %v", rlErr))
 	}
 
 	// Store a clean summary of the output for the next loop
@@ -416,15 +596,37 @@ func (c *Controller) ExecuteLoop(ctx stdcontext.Context) error {
 	if err != nil {
 		c.emitLog(LogLevelError, fmt.Sprintf("Failed to record result: %v", err))
 		c.emitUpdate("error")
+
+		// Emit outcome event for error case
+		c.emitOutcome(&LoopOutcome{
+			Success: false,
+			Error:   err.Error(),
+		})
+
 		return err
 	}
+
+	// Emit outcome event for success case
+	outcome := &LoopOutcome{
+		Success:   true,
+		ExitSignal: c.shouldStop,
+	}
+	if analysisResult != nil && analysisResult.Status != nil {
+		outcome.TasksCompleted = analysisResult.Status.TasksCompleted
+		outcome.FilesModified = analysisResult.Status.FilesModified
+		outcome.TestsStatus = analysisResult.Status.TestsStatus
+	}
+	c.emitOutcome(outcome)
+
+	// Invalidate cache so next iteration reloads plan
+	c.cacheValid = false
 
 	return nil
 }
 
 // ShouldContinue checks if the loop should continue
 func (c *Controller) ShouldContinue() bool {
-	tasks, err := LoadFixPlan()
+	tasks, err := LoadPlan()
 	if err != nil {
 		return false
 	}

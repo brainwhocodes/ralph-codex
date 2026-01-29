@@ -30,7 +30,7 @@ type SyncResult struct {
 // It only marks tasks complete if specific NEW files were created (not pre-existing files)
 func SyncTasksWithFilesystem(projectDir string) (*SyncResult, error) {
 	// Load the plan file
-	tasks, planFile, err := LoadFixPlanWithFile()
+	tasks, planFile, err := LoadPlanWithFile()
 	if err != nil {
 		return nil, err
 	}

@@ -6,17 +6,24 @@ import (
 	"os"
 	"strings"
 
-	"github.com/brainwhocodes/ralph-codex/internal/project"
+	"github.com/brainwhocodes/lisa-loop/internal/project"
 )
 
-// LoadFixPlan loads remaining tasks from the plan file based on detected project mode
-func LoadFixPlan() ([]string, error) {
-	tasks, _, err := LoadFixPlanWithFile()
+// LoadPlan loads remaining tasks from the plan file based on detected project mode
+// Alias for LoadPlanWithFile for backward compatibility
+func LoadPlan() ([]string, error) {
+	tasks, _, err := LoadPlanWithFile()
 	return tasks, err
 }
 
-// LoadFixPlanWithFile loads tasks and returns the plan file path
-func LoadFixPlanWithFile() ([]string, string, error) {
+// LoadFixPlan loads remaining tasks from the plan file (deprecated, use LoadPlan)
+// Deprecated: Use LoadPlan instead
+func LoadFixPlan() ([]string, error) {
+	return LoadPlan()
+}
+
+// LoadPlanWithFile loads tasks and returns the plan file path
+func LoadPlanWithFile() ([]string, string, error) {
 	// Detect mode and get the appropriate plan file
 	mode := DetectProjectMode()
 	planFile := GetPlanFileForMode(mode)
@@ -51,30 +58,30 @@ func LoadFixPlanWithFile() ([]string, string, error) {
 }
 
 // parseTasksFromPlan extracts checklist tasks from a plan file
+// Supports multiple checklist formats:
+//   - "- [ ] task" or "- [x] task" (Markdown)
+//   - "* [ ] task" or "* [x] task" (Alternative bullet)
+//   - "1. [ ] task" or "1. [x] task" (Numbered)
+//   - Indented checklists (nested tasks)
 func parseTasksFromPlan(content, filename string) ([]string, error) {
 	var tasks []string
 	scanner := bufio.NewScanner(strings.NewReader(content))
 
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
 			continue
 		}
 
-		// Match checklist items: - [ ] or - [x]
-		if strings.HasPrefix(line, "- [") {
-			// Extract the checkbox state and text
-			// Format: "- [ ] task" or "- [x] task"
-			if len(line) >= 6 {
-				checkbox := line[2:5] // "[ ]" or "[x]"
-				taskText := strings.TrimSpace(line[5:])
-
-				// Preserve the checkbox state in the task
-				if checkbox == "[x]" || checkbox == "[X]" {
-					tasks = append(tasks, "[x] "+taskText)
-				} else {
-					tasks = append(tasks, "[ ] "+taskText)
-				}
+		// Match various checklist formats
+		checked, taskText, found := extractChecklistItem(trimmed)
+		if found {
+			// Preserve the checkbox state in the task
+			if checked {
+				tasks = append(tasks, "[x] "+taskText)
+			} else {
+				tasks = append(tasks, "[ ] "+taskText)
 			}
 		}
 	}
@@ -83,7 +90,73 @@ func parseTasksFromPlan(content, filename string) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse %s: %w", filename, err)
 	}
 
+	// Warn if no tasks found
+	if len(tasks) == 0 {
+		// Return empty tasks with no error - caller can decide if this is a problem
+		return tasks, nil
+	}
+
 	return tasks, nil
+}
+
+// extractChecklistItem attempts to extract a checklist item from a line
+// Returns (isChecked, taskText, found)
+func extractChecklistItem(line string) (bool, string, bool) {
+	// Pattern: "- [ ] task" or "- [x] task"
+	if strings.HasPrefix(line, "- [") && len(line) >= 6 {
+		checkbox := line[2:5] // "[ ]" or "[x]" or "[X]"
+		if checkbox == "[ ]" || checkbox == "[x]" || checkbox == "[X]" {
+			taskText := strings.TrimSpace(line[5:])
+			return checkbox != "[ ]", taskText, true
+		}
+	}
+
+	// Pattern: "* [ ] task" or "* [x] task"
+	if strings.HasPrefix(line, "* [") && len(line) >= 6 {
+		checkbox := line[2:5]
+		if checkbox == "[ ]" || checkbox == "[x]" || checkbox == "[X]" {
+			taskText := strings.TrimSpace(line[5:])
+			return checkbox != "[ ]", taskText, true
+		}
+	}
+
+	// Pattern: "1. [ ] task" or "1. [x] task" (numbered lists)
+	// Match regex: ^\d+\.\s*\[([ xX])\]\s*(.+)$
+	if idx := strings.Index(line, ". ["); idx > 0 && idx < 5 {
+		// Check if prefix is a number
+		prefix := line[:idx]
+		if isNumber(prefix) {
+			checkboxStart := idx + 2
+			if len(line) >= checkboxStart+3 {
+				checkbox := line[checkboxStart : checkboxStart+3]
+				if checkbox == "[ ]" || checkbox == "[x]" || checkbox == "[X]" {
+					taskText := strings.TrimSpace(line[checkboxStart+3:])
+					return checkbox != "[ ]", taskText, true
+				}
+			}
+		}
+	}
+
+	// Pattern: "[ ] task" or "[x] task" (bare checkbox, no bullet)
+	if strings.HasPrefix(line, "[ ") || strings.HasPrefix(line, "[x") || strings.HasPrefix(line, "[X") {
+		if len(line) >= 4 && line[2] == ']' {
+			checkbox := line[:3]
+			taskText := strings.TrimSpace(line[3:])
+			return checkbox != "[ ]", taskText, true
+		}
+	}
+
+	return false, "", false
+}
+
+// isNumber checks if a string consists only of digits
+func isNumber(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 // ProjectMode is an alias to the unified project mode type
@@ -113,10 +186,14 @@ func GetPlanFileForMode(mode ProjectMode) string {
 func GetPromptForMode(mode ProjectMode) (string, error) {
 	switch mode {
 	case ModeImplement:
-		// Use PRD.md as the prompt for implement mode
+		// Try PRD.md first, fall back to IMPLEMENTATION_PLAN.md
 		data, err := os.ReadFile("PRD.md")
 		if err != nil {
-			return "", fmt.Errorf("failed to read PRD.md: %w", err)
+			// PRD.md is optional, use IMPLEMENTATION_PLAN.md instead
+			data, err = os.ReadFile("IMPLEMENTATION_PLAN.md")
+			if err != nil {
+				return "", fmt.Errorf("failed to read IMPLEMENTATION_PLAN.md: %w", err)
+			}
 		}
 		return string(data), nil
 
@@ -171,7 +248,7 @@ func BuildContextWithPlanFile(loopNum int, remainingTasks []string, circuitState
 	// CRITICAL instruction at the top
 	ctxBuilder.WriteString("\n** CRITICAL: MARK COMPLETED TASKS **\n")
 	fmt.Fprintf(&ctxBuilder, "After completing each task, you MUST edit %s to change `- [ ]` to `- [x]`\n", planFile)
-	ctxBuilder.WriteString("This is how Ralph tracks progress. Tasks not marked [x] will be repeated!\n")
+	ctxBuilder.WriteString("This is how Lisa tracks progress. Tasks not marked [x] will be repeated!\n")
 
 	if len(remainingTasks) > 0 && len(remainingTasks) <= 5 {
 		ctxBuilder.WriteString("\nRemaining Tasks (not yet marked [x]):\n")
@@ -216,7 +293,7 @@ func GetProjectRoot() (string, error) {
 	return root, err
 }
 
-// CheckProjectRoot verifies we're in a valid Ralph project
+// CheckProjectRoot verifies we're in a valid Lisa project
 // Delegates to the unified project.ValidateProjectDir function
 func CheckProjectRoot() error {
 	return project.ValidateProjectDir(".")

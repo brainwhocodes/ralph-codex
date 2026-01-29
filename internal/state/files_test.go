@@ -187,7 +187,7 @@ func TestSaveCodexSession(t *testing.T) {
 	}
 }
 
-func TestLoadRalphSession(t *testing.T) {
+func TestLoadLisaSession(t *testing.T) {
 	// Setup
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
@@ -195,39 +195,39 @@ func TestLoadRalphSession(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Test: Load non-existent session
-	sess, err := LoadRalphSession()
+	sess, err := LoadLisaSession()
 
 	if err != nil {
-		t.Errorf("LoadRalphSession() error = %v, want nil", err)
+		t.Errorf("LoadLisaSession() error = %v, want nil", err)
 	}
 
 	if len(sess) != 0 {
-		t.Errorf("LoadRalphSession() session = %v, want empty", sess)
+		t.Errorf("LoadLisaSession() session = %v, want empty", sess)
 	}
 }
 
-func TestSaveRalphSession(t *testing.T) {
+func TestSaveLisaSession(t *testing.T) {
 	// Setup
 	tmpDir := t.TempDir()
 	origDir, _ := os.Getwd()
 	defer os.Chdir(origDir)
 	os.Chdir(tmpDir)
 
-	// Test: Save Ralph session
+	// Test: Save Lisa session
 	testSess := map[string]interface{}{
 		"key":    "value",
 		"number": 42,
 	}
-	err := SaveRalphSession(testSess)
+	err := SaveLisaSession(testSess)
 
 	if err != nil {
-		t.Errorf("SaveRalphSession() error = %v, want nil", err)
+		t.Errorf("SaveLisaSession() error = %v, want nil", err)
 	}
 
 	// Verify
-	loaded, _ := LoadRalphSession()
+	loaded, _ := LoadLisaSession()
 	if len(loaded) != len(testSess) {
-		t.Errorf("SaveRalphSession() session mismatch")
+		t.Errorf("SaveLisaSession() session mismatch")
 	}
 }
 

@@ -1,6 +1,6 @@
-# Testing Guide for Ralph
+# Testing Guide for Lisa
 
-This guide provides comprehensive documentation for the Ralph test suite, helping contributors understand how to run, write, and maintain tests.
+This guide provides comprehensive documentation for the Lisa test suite, helping contributors understand how to run, write, and maintain tests.
 
 **Current Status**: 276 tests | 100% pass rate | CI/CD via GitHub Actions
 
@@ -511,7 +511,7 @@ create_sample_prd_json "output.json" # JSON PRD
 #### Project Fixtures
 
 ```bash
-# Create sample Ralph project files
+# Create sample Lisa project files
 create_sample_prompt "PROMPT.md"
 create_sample_fix_plan "@fix_plan.md" 10 3  # 10 tasks, 3 completed
 create_sample_agent_md "@AGENT.md"
@@ -882,7 +882,7 @@ grep COVERAGE_THRESHOLD .github/workflows/test.yml
 
 1. **Check existing tests**: Look at similar tests in the suite for patterns
 2. **BATS documentation**: https://bats-core.readthedocs.io/
-3. **GitHub Issues**: Report test infrastructure issues at https://github.com/brainwhocodes/ralph-codex/issues
+3. **GitHub Issues**: Report test infrastructure issues at https://github.com/brainwhocodes/lisa-loop/issues
 
 ---
 

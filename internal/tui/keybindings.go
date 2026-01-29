@@ -25,7 +25,7 @@ func GetKeybindingHelp() string {
 		{
 			Title: "Navigation",
 			Keys: []Keybinding{
-				{"q / Ctrl+C", "Quit Ralph Codex"},
+				{"q / Ctrl+C", "Quit Lisa Codex"},
 				{"?", "Toggle help screen"},
 			},
 		},

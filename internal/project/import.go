@@ -25,7 +25,7 @@ type ImportResult struct {
 	ConvertedFrom string
 }
 
-// ImportPRD imports a PRD or specification document and converts to Ralph format
+// ImportPRD imports a PRD or specification document and converts to Lisa format
 func ImportPRD(opts ImportOptions) (*ImportResult, error) {
 	// Validate inputs
 	if opts.SourcePath == "" {

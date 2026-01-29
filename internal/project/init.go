@@ -44,7 +44,7 @@ type InitResult struct {
 	Success                bool
 }
 
-// InitFromPRD initializes a Ralph project from an existing PRD.md
+// InitFromPRD initializes a Lisa project from an existing PRD.md
 // It generates IMPLEMENTATION_PLAN.md and AGENTS.md using Codex
 func InitFromPRD(opts InitOptions) (*InitResult, error) {
 	// Default PRD path
@@ -203,7 +203,7 @@ func FindRefactor(dir string) (string, error) {
 	return "", fmt.Errorf("no REFACTOR.md file found in %s", dir)
 }
 
-// Init initializes a Ralph project based on the mode
+// Init initializes a Lisa project based on the mode
 // - Implementation mode: Uses PRD.md to generate IMPLEMENTATION_PLAN.md and AGENTS.md
 // - Fix mode: Uses specs folder to generate @fix_plan.md
 // - Refactor mode: Analyzes codebase to generate REFACTOR_PLAN.md (no input file needed)

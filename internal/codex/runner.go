@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/state"
+	"github.com/brainwhocodes/lisa-loop/internal/state"
 )
 
 // OutputCallback is called for each line of streaming output
@@ -317,7 +317,7 @@ type SessionMetadata struct {
 
 // LoadSessionMetadata loads session metadata
 func LoadSessionMetadata() (*SessionMetadata, error) {
-	sess, err := state.LoadRalphSession()
+	sess, err := state.LoadLisaSession()
 	if err != nil {
 		return nil, err
 	}
@@ -349,5 +349,5 @@ func SaveSessionMetadata(meta *SessionMetadata) error {
 		"last_used":  meta.LastUsed.Format(time.RFC3339),
 	}
 
-	return state.SaveRalphSession(sess)
+	return state.SaveLisaSession(sess)
 }

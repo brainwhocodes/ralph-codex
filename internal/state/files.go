@@ -105,13 +105,13 @@ func SaveCodexSession(id string) error {
 	return AtomicWrite(".codex_session_id", []byte(id))
 }
 
-// LoadRalphSession loads Ralph session metadata from .ralph_session
-func LoadRalphSession() (map[string]interface{}, error) {
+// LoadLisaSession loads Lisa session metadata from .ralph_session
+func LoadLisaSession() (map[string]interface{}, error) {
 	return LoadState(".ralph_session", map[string]interface{}{})
 }
 
-// SaveRalphSession saves Ralph session metadata atomically
-func SaveRalphSession(session map[string]interface{}) error {
+// SaveLisaSession saves Lisa session metadata atomically
+func SaveLisaSession(session map[string]interface{}) error {
 	return SaveState(".ralph_session", session)
 }
 

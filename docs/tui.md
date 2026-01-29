@@ -1,21 +1,21 @@
-# Ralph Codex TUI Documentation
+# Lisa Codex TUI Documentation
 
 ## Overview
 
-Ralph Codex includes a terminal user interface (TUI) powered by Charm libraries (Bubble Tea, Lip Gloss). The TUI provides real-time monitoring of the autonomous development loop with a modern, visually appealing interface.
+Lisa Codex includes a terminal user interface (TUI) powered by Charm libraries (Bubble Tea, Lip Gloss). The TUI provides real-time monitoring of the autonomous development loop with a modern, visually appealing interface.
 
 ## Starting the TUI
 
-To start Ralph with the integrated TUI monitor:
+To start Lisa with the integrated TUI monitor:
 
 ```bash
-ralph --command run --monitor
+lisa --command run --monitor
 ```
 
 ## Keybindings
 
 ### Navigation
-- `q` / `Ctrl+C` - Quit Ralph Codex
+- `q` / `Ctrl+C` - Quit Lisa Codex
 - `?` - Toggle help screen
 
 ### Loop Control
@@ -130,7 +130,7 @@ Calls: 85/100 [█████████████████████�
 
 When full, wait for the hour to reset or increase limit:
 ```bash
-ralph --command run --calls 200
+lisa --command run --calls 200
 ```
 
 ### Codex Not Found
@@ -159,8 +159,8 @@ The TUI uses the following color scheme:
 
 ```bash
 # Clone repository
-git clone https://github.com/brainwhocodes/ralph-codex.git
-cd ralph-codex
+git clone https://github.com/brainwhocodes/lisa-loop.git
+cd lisa-loop
 
 # Build binary
 make build
@@ -169,7 +169,7 @@ make build
 make install
 
 # Run with TUI
-./ralph --command run --monitor
+./lisa --command run --monitor
 ```
 
 ## Testing

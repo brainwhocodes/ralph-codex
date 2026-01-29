@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brainwhocodes/ralph-codex/internal/config"
-	"github.com/brainwhocodes/ralph-codex/internal/opencode"
+	"github.com/brainwhocodes/lisa-loop/internal/config"
+	"github.com/brainwhocodes/lisa-loop/internal/opencode"
 	"github.com/charmbracelet/log"
 )
 

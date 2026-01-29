@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/config"
+	"github.com/brainwhocodes/lisa-loop/internal/config"
 )
 
 // OutputCallback is called for streaming output events

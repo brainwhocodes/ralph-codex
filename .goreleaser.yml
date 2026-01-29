@@ -1,6 +1,6 @@
-# Ralph Codex - Goreleaser configuration
+# Lisa Loop - Goreleaser configuration
 
-project_name: ralph
+project_name: lisa
 dist: dist
 
 before:
@@ -9,8 +9,8 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/ralph
-    binary: ralph
+  - main: ./cmd/lisa
+    binary: lisa
     goos:
       - darwin
       - linux
@@ -27,7 +27,7 @@ builds:
       - -X main.Date={{.Date}}
 
 archives:
-  - id: ralph
+  - id: lisa
     format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
@@ -52,29 +52,29 @@ changelog:
 release:
   github:
     owner: brainwhocodes
-    name: ralph-codex
+    name: lisa-loop
   mode: replace
 
 nfpms:
   - maintainer: Frank Bria <frank@example.com>
     description: Autonomous AI Development Loop with Charm TUI
-    homepage: https://github.com/brainwhocodes/ralph-codex
+    homepage: https://github.com/brainwhocodes/lisa-loop
     license: MIT
     formats:
       - deb
       - rpm
 
 brews:
-  - name: ralph
+  - name: lisa
     repository:
       owner: brainwhocodes
       name: homebrew-tap
     description: Autonomous AI Development Loop with Charm TUI
-    homepage: https://github.com/brainwhocodes/ralph-codex
+    homepage: https://github.com/brainwhocodes/lisa-loop
     license: MIT
 
 scoops:
-  - name: ralph
+  - name: lisa
     description: Autonomous AI Development Loop with Charm TUI
-    homepage: https://github.com/brainwhocodes/ralph-codex
+    homepage: https://github.com/brainwhocodes/lisa-loop
     license: MIT

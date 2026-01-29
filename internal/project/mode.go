@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// ProjectMode represents the type of Ralph project
+// ProjectMode represents the type of Lisa project
 type ProjectMode string
 
 const (
@@ -35,6 +35,7 @@ var ModeConfigs = []ModeConfig{
 		Mode:      ProjectModeImplement,
 		InputFile: "PRD.md",
 		PlanFile:  "IMPLEMENTATION_PLAN.md",
+		AltInputs: []string{"IMPLEMENTATION_PLAN.md"}, // Can have just the plan file
 	},
 	{
 		Mode:      ProjectModeRefactor,
@@ -67,8 +68,8 @@ func DetectMode(dir string) ProjectMode {
 		return ProjectModeFix
 	}
 
-	// Implement mode: PRD.md + IMPLEMENTATION_PLAN.md
-	if fileExistsAt(dir, "PRD.md") && fileExistsAt(dir, "IMPLEMENTATION_PLAN.md") {
+	// Implement mode: IMPLEMENTATION_PLAN.md (optionally with PRD.md)
+	if fileExistsAt(dir, "IMPLEMENTATION_PLAN.md") {
 		return ProjectModeImplement
 	}
 
@@ -108,8 +109,8 @@ func ValidateModeFiles(dir string, mode ProjectMode) error {
 				return fmt.Errorf("missing plan file: %s", cfg.PlanFile)
 			}
 
-			// For refactor mode, input file is optional
-			if mode != ProjectModeRefactor {
+			// For implement and refactor modes, input file is optional
+			if mode != ProjectModeRefactor && mode != ProjectModeImplement {
 				if !fileExistsAt(dir, cfg.InputFile) {
 					return fmt.Errorf("missing input file: %s", cfg.InputFile)
 				}
@@ -121,7 +122,7 @@ func ValidateModeFiles(dir string, mode ProjectMode) error {
 	return fmt.Errorf("unknown mode: %s", mode)
 }
 
-// FindProjectRoot searches upward from the current directory to find a Ralph project root
+// FindProjectRoot searches upward from the current directory to find a Lisa project root
 func FindProjectRoot(startDir string) (string, ProjectMode, error) {
 	if startDir == "" {
 		var err error
@@ -140,7 +141,7 @@ func FindProjectRoot(startDir string) (string, ProjectMode, error) {
 
 		// Also check for .git as a fallback indicator
 		if fileExistsAt(dir, ".git") {
-			// Found git root but no Ralph project files
+			// Found git root but no Lisa project files
 			break
 		}
 
@@ -152,19 +153,19 @@ func FindProjectRoot(startDir string) (string, ProjectMode, error) {
 		dir = parent
 	}
 
-	return "", ProjectModeUnknown, fmt.Errorf("could not find Ralph project root (no valid mode configuration found)")
+	return "", ProjectModeUnknown, fmt.Errorf("could not find Lisa project root (no valid mode configuration found)")
 }
 
-// IsValidProject checks if the directory contains a valid Ralph project
+// IsValidProject checks if the directory contains a valid Lisa project
 func IsValidProject(dir string) bool {
 	return DetectMode(dir) != ProjectModeUnknown
 }
 
-// ValidateProjectDir checks if the directory is a valid Ralph project and returns an error if not
+// ValidateProjectDir checks if the directory is a valid Lisa project and returns an error if not
 func ValidateProjectDir(dir string) error {
 	mode := DetectMode(dir)
 	if mode == ProjectModeUnknown {
-		return fmt.Errorf("not a valid Ralph project. Need one of:\n  - PRD.md + IMPLEMENTATION_PLAN.md (implementation mode)\n  - REFACTOR_PLAN.md (refactor mode)\n  - PROMPT.md + @fix_plan.md (fix mode)")
+		return fmt.Errorf("not a valid Lisa project. Need one of:\n  - IMPLEMENTATION_PLAN.md (implementation mode, optionally with PRD.md)\n  - REFACTOR_PLAN.md (refactor mode)\n  - PROMPT.md + @fix_plan.md (fix mode)")
 	}
 	return nil
 }

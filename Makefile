@@ -1,32 +1,32 @@
-# Ralph Codex - Makefile
+# Lisa Loop - Makefile
 
 .PHONY: build install test test-integration lint clean help all
 
 # Variables
-BINARY=ralph
-CMD_PATH=./cmd/ralph
+BINARY=lisa
+CMD_PATH=./cmd/lisa
 GO=go
 GOFLAGS=-v
 
 # Default target
 all: build test lint
 
-## build: Build the ralph binary
+## build: Build the lisa binary
 build:
 	$(GO) build $(GOFLAGS) -o $(BINARY) $(CMD_PATH)
 
-## install: Install ralph to $GOPATH/bin and skills/templates
+## install: Install lisa to $GOPATH/bin and skills/templates
 install: install-bin install-templates install-skills
 
 ## install-bin: Install Go binary
 install-bin:
 	$(GO) install $(GOFLAGS) $(CMD_PATH)
 
-## install-templates: Install project templates to ~/.ralph/templates
+## install-templates: Install project templates to ~/.lisa/templates
 install-templates:
-	@echo "Installing templates to ~/.ralph/templates..."
-	@mkdir -p ~/.ralph/templates
-	@cp -r templates/* ~/.ralph/templates/
+	@echo "Installing templates to ~/.lisa/templates..."
+	@mkdir -p ~/.lisa/templates
+	@cp -r templates/* ~/.lisa/templates/
 	@echo "Templates installed successfully"
 
 ## install-skills: Install Codex skills to ~/.codex/skills
@@ -78,9 +78,9 @@ vet:
 clean:
 	rm -f $(BINARY)
 	rm -f coverage.out coverage.html
-	rm -f /tmp/ralph-test-*
+	rm -f /tmp/lisa-test-*
 
-## run: Build and run ralph
+## run: Build and run lisa
 run: build
 	./$(BINARY) --help
 
@@ -100,12 +100,12 @@ deps-update:
 
 ## help: Show this help message
 help:
-	@echo "Ralph Codex - Makefile"
+	@echo "Lisa Loop - Makefile"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all              Build, test, and lint"
-	@echo "  build            Build the ralph binary"
-	@echo "  install          Install ralph, templates, and skills"
+	@echo "  build            Build the lisa binary"
+	@echo "  install          Install lisa, templates, and skills"
 	@echo "  install-bin      Install Go binary only"
 	@echo "  install-templates Install project templates only"
 	@echo "  install-skills   Install Codex skills to ~/.codex/skills"
@@ -117,7 +117,7 @@ help:
 	@echo "  fmt              Format code with gofmt"
 	@echo "  vet              Run go vet"
 	@echo "  clean            Clean build artifacts"
-	@echo "  run              Build and run ralph"
+	@echo "  run              Build and run lisa"
 	@echo "  setup-test       Create test project"
 	@echo "  deps             Download dependencies"
 	@echo "  deps-update      Update dependencies"

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/brainwhocodes/ralph-codex/internal/codex"
-	"github.com/brainwhocodes/ralph-codex/internal/loop"
+	"github.com/brainwhocodes/lisa-loop/internal/codex"
+	"github.com/brainwhocodes/lisa-loop/internal/loop"
 )
 
 func TestNewProgram_ExplicitMode(t *testing.T) {

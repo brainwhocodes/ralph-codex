@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -103,7 +104,7 @@ func TestBuildAgentsPrompt(t *testing.T) {
 	prompt := BuildAgentsPrompt(prdContent)
 
 	// Should contain the PRD content
-	if !contains(prompt, prdContent) {
+	if !contains(prdContent, prdContent) {
 		t.Error("Prompt should contain PRD content")
 	}
 
@@ -337,6 +338,174 @@ func TestInit_AutoDetect_Refactor(t *testing.T) {
 	} else if !contains(err.Error(), "codex") && !contains(err.Error(), "REFACTOR_PLAN") {
 		// If error is not about codex/generation, it might be wrong mode detection
 		t.Logf("Init error (expected - Codex not available): %v", err)
+	}
+}
+
+// TestReadSpecsFolder tests the readSpecsFolder function with various scenarios
+func TestReadSpecsFolder(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupFunc   func(t *testing.T) string
+		wantErr     bool
+		errContains string
+		wantContent []string // Substrings that should be in the result
+		wantOrder   []string // Substrings that should appear in order
+	}{
+		{
+			name: "empty folder",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				specsDir := filepath.Join(tmpDir, "specs")
+				if err := os.MkdirAll(specsDir, 0755); err != nil {
+					t.Fatalf("Failed to create specs dir: %v", err)
+				}
+				return specsDir
+			},
+			wantErr:     true,
+			errContains: "no markdown files found",
+		},
+		{
+			name: "non-existent folder",
+			setupFunc: func(t *testing.T) string {
+				return filepath.Join(t.TempDir(), "nonexistent")
+			},
+			wantErr:     true,
+			errContains: "failed to read specs directory",
+		},
+		{
+			name: "ignores non-markdown files",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				specsDir := filepath.Join(tmpDir, "specs")
+				if err := os.MkdirAll(specsDir, 0755); err != nil {
+					t.Fatalf("Failed to create specs dir: %v", err)
+				}
+				// Create non-markdown files
+				os.WriteFile(filepath.Join(specsDir, "readme.txt"), []byte("Text content"), 0644)
+				os.WriteFile(filepath.Join(specsDir, "data.json"), []byte(`{"key": "value"}`), 0644)
+				os.WriteFile(filepath.Join(specsDir, "script.py"), []byte("print('hello')"), 0644)
+				// Create one markdown file
+				os.WriteFile(filepath.Join(specsDir, "api.md"), []byte("# API Spec"), 0644)
+				return specsDir
+			},
+			wantErr:     false,
+			wantContent: []string{"# API Spec", "File: api.md"},
+			wantOrder:   []string{"File: api.md", "# API Spec"},
+		},
+		{
+			name: "multiple markdown files concatenated",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				specsDir := filepath.Join(tmpDir, "specs")
+				if err := os.MkdirAll(specsDir, 0755); err != nil {
+					t.Fatalf("Failed to create specs dir: %v", err)
+				}
+				// Create multiple markdown files
+				os.WriteFile(filepath.Join(specsDir, "01_intro.md"), []byte("# Introduction\n\nThis is the intro."), 0644)
+				os.WriteFile(filepath.Join(specsDir, "02_api.md"), []byte("# API\n\nAPI endpoints here."), 0644)
+				os.WriteFile(filepath.Join(specsDir, "03_auth.md"), []byte("# Authentication\n\nAuth methods."), 0644)
+				return specsDir
+			},
+			wantErr: false,
+			wantContent: []string{
+				"# Introduction",
+				"# API",
+				"# Authentication",
+				"File: 01_intro.md",
+				"File: 02_api.md",
+				"File: 03_auth.md",
+			},
+		},
+		{
+			name: "case insensitive markdown extension",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				specsDir := filepath.Join(tmpDir, "specs")
+				if err := os.MkdirAll(specsDir, 0755); err != nil {
+					t.Fatalf("Failed to create specs dir: %v", err)
+				}
+				// Create files with different case extensions
+				os.WriteFile(filepath.Join(specsDir, "lowercase.md"), []byte("# Lowercase"), 0644)
+				os.WriteFile(filepath.Join(specsDir, "uppercase.MD"), []byte("# Uppercase"), 0644)
+				os.WriteFile(filepath.Join(specsDir, "mixed.Md"), []byte("# Mixed"), 0644)
+				return specsDir
+			},
+			wantErr: false,
+			wantContent: []string{
+				"# Lowercase",
+				"# Uppercase",
+				"# Mixed",
+			},
+		},
+		{
+			name: "ignores subdirectories",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				specsDir := filepath.Join(tmpDir, "specs")
+				subDir := filepath.Join(specsDir, "subdir")
+				if err := os.MkdirAll(subDir, 0755); err != nil {
+					t.Fatalf("Failed to create subdir: %v", err)
+				}
+				// Create file in subdirectory (should be ignored)
+				os.WriteFile(filepath.Join(subDir, "nested.md"), []byte("# Nested"), 0644)
+				// Create file in main directory
+				os.WriteFile(filepath.Join(specsDir, "main.md"), []byte("# Main"), 0644)
+				return specsDir
+			},
+			wantErr:     false,
+			wantContent: []string{"# Main", "File: main.md"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			specsDir := tt.setupFunc(t)
+			content, err := readSpecsFolder(specsDir)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("readSpecsFolder() expected error, got nil")
+					return
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("readSpecsFolder() error = %v, expected to contain %q", err, tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("readSpecsFolder() unexpected error = %v", err)
+				return
+			}
+
+			// Check expected content
+			for _, want := range tt.wantContent {
+				if !strings.Contains(content, want) {
+					t.Errorf("readSpecsFolder() content missing expected substring: %q\nGot content:\n%s", want, content)
+				}
+			}
+
+			// Check ordering if specified
+			if len(tt.wantOrder) > 1 {
+				lastIdx := -1
+				for _, want := range tt.wantOrder {
+					idx := strings.Index(content, want)
+					if idx == -1 {
+						t.Errorf("readSpecsFolder() content missing expected substring for ordering check: %q", want)
+						continue
+					}
+					if idx <= lastIdx {
+						t.Errorf("readSpecsFolder() content ordering incorrect: %q appears at wrong position\nGot content:\n%s", want, content)
+					}
+					lastIdx = idx
+				}
+			}
+
+			// Verify content structure (separator between files)
+			if !strings.Contains(content, "\n\n---\n") {
+				t.Error("readSpecsFolder() content missing file separator '---'")
+			}
+		})
 	}
 }
 

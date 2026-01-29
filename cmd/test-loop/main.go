@@ -6,13 +6,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/circuit"
-	"github.com/brainwhocodes/ralph-codex/internal/loop"
+	"github.com/brainwhocodes/lisa-loop/internal/circuit"
+	"github.com/brainwhocodes/lisa-loop/internal/loop"
 )
 
 // Test the loop controller without TUI to see raw output
 func main() {
-	fmt.Println("=== Ralph Loop Test (No TUI) ===")
+	fmt.Println("=== Lisa Loop Test (No TUI) ===")
 	fmt.Println()
 
 	// Change to project directory if provided

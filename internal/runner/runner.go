@@ -1,9 +1,9 @@
 package runner
 
 import (
-	"github.com/brainwhocodes/ralph-codex/internal/codex"
-	"github.com/brainwhocodes/ralph-codex/internal/config"
-	"github.com/brainwhocodes/ralph-codex/internal/opencode"
+	"github.com/brainwhocodes/lisa-loop/internal/codex"
+	"github.com/brainwhocodes/lisa-loop/internal/config"
+	"github.com/brainwhocodes/lisa-loop/internal/opencode"
 )
 
 // Event is a generic event type for streaming output

@@ -1,6 +1,6 @@
 package config
 
-// Config holds unified configuration for Ralph Codex
+// Config holds unified configuration for Lisa Codex
 type Config struct {
 	Backend      string
 	ProjectPath  string

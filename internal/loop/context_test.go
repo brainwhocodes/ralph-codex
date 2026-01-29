@@ -52,7 +52,7 @@ func TestBuildContext(t *testing.T) {
 	tasks := []string{"Task 1", "Task 2"}
 	context, _ := BuildContext(1, tasks, "CLOSED", "Previous summary")
 
-	expectedContains := []string{"Loop: 1", "Circuit Breaker: CLOSED", "Remaining Tasks:", "Previous Loop Summary:"}
+	expectedContains := []string{"Loop: 1", "Circuit Breaker: CLOSED", "Remaining Tasks (not yet marked [x]):", "Previous Loop Output"}
 
 	for _, expected := range expectedContains {
 		if !strings.Contains(context, expected) {
@@ -77,7 +77,7 @@ func TestBuildContextNoTasks(t *testing.T) {
 		t.Errorf("BuildContext() should not show Remaining Tasks when empty")
 	}
 
-	if !strings.Contains(context, "Previous Loop Summary:") {
+	if !strings.Contains(context, "Previous Loop Output") {
 		t.Errorf("BuildContext() should show previous summary")
 	}
 }

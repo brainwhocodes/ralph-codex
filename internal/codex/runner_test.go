@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/brainwhocodes/ralph-codex/internal/state"
+	"github.com/brainwhocodes/lisa-loop/internal/state"
 )
 
 func TestParseJSONLLineValid(t *testing.T) {
@@ -426,7 +426,7 @@ func TestStatePersistence(t *testing.T) {
 		}
 	})
 
-	t.Run("Save and Load Ralph Session", func(t *testing.T) {
+	t.Run("Save and Load Lisa Session", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		origDir, _ := os.Getwd()
 		defer os.Chdir(origDir)
@@ -439,18 +439,18 @@ func TestStatePersistence(t *testing.T) {
 			"last_used":  "2024-01-01T01:00:00Z",
 		}
 
-		err := state.SaveRalphSession(sessionData)
+		err := state.SaveLisaSession(sessionData)
 		if err != nil {
-			t.Fatalf("state.SaveRalphSession() error = %v", err)
+			t.Fatalf("state.SaveLisaSession() error = %v", err)
 		}
 
-		loadedData, err := state.LoadRalphSession()
+		loadedData, err := state.LoadLisaSession()
 		if err != nil {
-			t.Fatalf("state.LoadRalphSession() error = %v", err)
+			t.Fatalf("state.LoadLisaSession() error = %v", err)
 		}
 
 		if loadedData["id"] != sessionData["id"] {
-			t.Errorf("state.LoadRalphSession() id = %v, want %v", loadedData["id"], sessionData["id"])
+			t.Errorf("state.LoadLisaSession() id = %v, want %v", loadedData["id"], sessionData["id"])
 		}
 	})
 }

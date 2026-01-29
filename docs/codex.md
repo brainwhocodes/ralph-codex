@@ -1,10 +1,10 @@
 # Codex Backend
 
-Ralph uses OpenAI's Codex CLI (`codex exec`) and Codex SDK (`@openai/codex-sdk`) as the AI agent backend for autonomous development loops.
+Lisa uses OpenAI's Codex CLI (`codex exec`) and Codex SDK (`@openai/codex-sdk`) as the AI agent backend for autonomous development loops.
 
 ## Overview
 
-Ralph is an autonomous development loop system that uses OpenAI's Codex as its AI backend. It provides two integration options:
+Lisa is an autonomous development loop system that uses OpenAI's Codex as its AI backend. It provides two integration options:
 
 - **Codex CLI backend** - Uses `codex exec` for command-line based execution with JSONL streaming
 - **Codex SDK backend** - Uses `@openai/codex-sdk` for programmatic, resumable sessions with fine-grained control
@@ -13,7 +13,7 @@ The system is designed to continuously iterate on your project until completion,
 
 ## Codex CLI Backend (Default)
 
-The Codex CLI backend is the default execution method for Ralph. It uses the `codex exec` command with JSONL streaming output for real-time parsing of AI responses.
+The Codex CLI backend is the default execution method for Lisa. It uses the `codex exec` command with JSONL streaming output for real-time parsing of AI responses.
 
 ### Installation
 
@@ -54,20 +54,20 @@ source ~/.zshrc
 ### Basic Usage
 
 ```bash
-# Run Ralph with Codex CLI backend (default)
-ralph --monitor
+# Run Lisa with Codex CLI backend (default)
+lisa --monitor
 
 # Explicitly select CLI backend
-ralph --backend cli --monitor
+lisa --backend cli --monitor
 
 # With custom prompt file
-ralph --backend cli --prompt my-prompt.md
+lisa --backend cli --prompt my-prompt.md
 
 # With rate limiting
-ralph --backend cli --calls 50 --monitor
+lisa --backend cli --calls 50 --monitor
 
 # With verbose output
-ralph --backend cli --verbose --monitor
+lisa --backend cli --verbose --monitor
 ```
 
 ### JSONL Output Parsing
@@ -78,7 +78,7 @@ The Codex CLI emits JSONL (JSON Lines) streaming output when invoked with the `-
 codex exec --json --prompt "your prompt"
 ```
 
-Each line is a JSON object representing an event, tool call, or response. Ralph parses this JSONL stream to:
+Each line is a JSON object representing an event, tool call, or response. Lisa parses this JSONL stream to:
 
 - Extract tool usage (file edits, bash commands, etc.)
 - Track progress and completion indicators
@@ -88,7 +88,7 @@ Each line is a JSON object representing an event, tool call, or response. Ralph 
 **Why JSONL?**
 - Streamable parsing (process events as they arrive)
 - Structured data for reliable state tracking
-- Backward-compatible with Ralph's existing JSON-based analyzers
+- Backward-compatible with Lisa's existing JSON-based analyzers
 
 ### Resume Support
 
@@ -100,24 +100,24 @@ codex exec --json --prompt "your prompt"
 codex exec --json --resume --thread-id <thread-id>
 ```
 
-Ralph automatically handles session persistence and resumption when using `--agent codex-cli` with the `--continue` flag (enabled by default).
+Lisa automatically handles session persistence and resumption when using `--agent codex-cli` with the `--continue` flag (enabled by default).
 
 ### Git Repository Requirements
 
 Codex CLI requires running inside a git repository unless the `--skip-git-repo-check` flag is provided.
 
-Ralph automatically adds this flag when needed:
+Lisa automatically adds this flag when needed:
 
 ```bash
 # Codex automatically checks for git repo
-ralph  # Will work in git-initialized projects
+lisa  # Will work in git-initialized projects
 
-# For non-git projects, Ralph adds --skip-git-repo-check automatically
+# For non-git projects, Lisa adds --skip-git-repo-check automatically
 ```
 
 ### Shell Quoting Safety
 
-When passing large prompt files (like `PROMPT.md`) to `codex exec`, Ralph takes special care to avoid shell-quoting pitfalls:
+When passing large prompt files (like `PROMPT.md`) to `codex exec`, Lisa takes special care to avoid shell-quoting pitfalls:
 
 ```bash
 # Safe: Use heredoc or process substitution
@@ -127,7 +127,7 @@ codex exec --json --prompt "$(cat PROMPT.md)"
 codex exec --json --prompt "$(< PROMPT.md)"  # May break on special chars
 ```
 
-Ralph uses process substitution with proper escaping to ensure prompt content is passed correctly.
+Lisa uses process substitution with proper escaping to ensure prompt content is passed correctly.
 
 ## Codex SDK Backend
 
@@ -141,7 +141,7 @@ The Codex SDK requires Node.js 18+:
 # Install in your project
 npm install @openai/codex-sdk
 
-# Or install globally if Ralph will use it system-wide
+# Or install globally if Lisa will use it system-wide
 npm install -g @openai/codex-sdk
 ```
 
@@ -178,19 +178,19 @@ source ~/.zshrc
 ### Basic Usage
 
 ```bash
-# Run Ralph with Codex SDK backend
-ralph --backend sdk --monitor
+# Run Lisa with Codex SDK backend
+lisa --backend sdk --monitor
 
 # With custom prompt
-ralph --backend sdk --prompt my-prompt.md
+lisa --backend sdk --prompt my-prompt.md
 
 # With rate limiting
-ralph --backend sdk --calls 50 --monitor
+lisa --backend sdk --calls 50 --monitor
 ```
 
 ### SDK API Overview
 
-Ralph's Codex SDK backend uses these key components:
+Lisa's Codex SDK backend uses these key components:
 
 ```javascript
 import { Codex } from '@openai/codex-sdk';
@@ -217,16 +217,16 @@ await codex.threads.wait(thread.id);
 
 ### Thread Persistence
 
-When using the Codex SDK backend, Ralph:
+When using the Codex SDK backend, Lisa:
 
 1. Creates a new thread on first run
 2. Persists the thread ID to `.ralph_thread_id`
 3. Automatically resumes the thread on subsequent iterations
 4. Manages thread lifecycle (reset on circuit breaker, completion, etc.)
 
-Thread state is stored separately from Ralph's session state:
+Thread state is stored separately from Lisa's session state:
 
-- `.ralph_session` - Ralph loop state (rate limits, circuit breaker, etc.)
+- `.ralph_session` - Lisa loop state (rate limits, circuit breaker, etc.)
 - `.ralph_thread_id` - Codex SDK thread identifier
 - `.ralph_thread_history` - Thread lifecycle events for debugging
 
@@ -264,11 +264,11 @@ Compared to the CLI backend, the SDK backend offers:
 
 ### Default Behavior
 
-Ralph uses Codex CLI as the default backend:
+Lisa uses Codex CLI as the default backend:
 
 ```bash
-ralph  # Uses Codex CLI backend by default
-ralph --monitor  # With integrated monitoring
+lisa  # Uses Codex CLI backend by default
+lisa --monitor  # With integrated monitoring
 ```
 
 ### Backend Selection
@@ -288,22 +288,22 @@ To select between Codex CLI and Codex SDK, use the `--backend` flag:
 
 2. **Use the appropriate backend flag**:
    ```bash
-   ralph --backend cli --monitor      # Codex CLI
-   ralph --backend sdk --monitor      # Codex SDK
+   lisa --backend cli --monitor      # Codex CLI
+   lisa --backend sdk --monitor      # Codex SDK
    ```
 
 3. **Test with a sample project**:
    ```bash
    ralph-setup test-codex
    cd test-codex
-   ralph --monitor
+   lisa --monitor
    ```
 
 ## Template Support
 
-Ralph's project templates include Codex-specific configuration:
+Lisa's project templates include Codex-specific configuration:
 
-### Standard Ralph Template
+### Standard Lisa Template
 
 ```
 my-project/
@@ -335,7 +335,7 @@ my-project/
 
 ### No Real Codex Calls in CI/Unit Tests
 
-Ralph mocks all Codex CLI and SDK calls in tests to avoid:
+Lisa mocks all Codex CLI and SDK calls in tests to avoid:
 
 - API costs during test runs
 - Rate limit issues in CI pipelines
@@ -397,7 +397,7 @@ export CODEX_API_KEY="your-key"
 **"Thread not found" (SDK)**
 ```bash
 # Thread may have expired or been deleted
-ralph --reset-session  # Start fresh thread
+lisa --reset-session  # Start fresh thread
 ```
 
 **JSONL parsing errors**
@@ -408,7 +408,7 @@ ralph --reset-session  # Start fresh thread
 **Session continuity issues**
 - Check `.ralph_thread_id` exists and is valid
 - Verify `--continue` flag is not disabled
-- Use `ralph --status` to inspect session state
+- Use `lisa --status` to inspect session state
 
 ## Security Considerations
 
@@ -432,11 +432,11 @@ ralph --reset-session  # Start fresh thread
 
 ### Rate Limiting
 
-Ralph's rate limiting applies to both Codex backends:
+Lisa's rate limiting applies to both Codex backends:
 
 ```bash
 # Limit API calls
-ralph --calls 50 --monitor
+lisa --calls 50 --monitor
 ```
 
 ## Future Enhancements
@@ -453,7 +453,7 @@ Planned Codex integration improvements:
 
 ## See Also
 
-- [README.md](README.md) - Ralph overview and quick start
+- [README.md](README.md) - Lisa overview and quick start
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development and testing guidelines
 - [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Full development roadmap
 - [00_overview.md](00_overview.md) - Codex integration project goals

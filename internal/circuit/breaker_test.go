@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brainwhocodes/ralph-codex/internal/state"
+	"github.com/brainwhocodes/lisa-loop/internal/state"
 )
 
 func TestNewBreaker(t *testing.T) {

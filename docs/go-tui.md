@@ -1,6 +1,6 @@
-# Ralph Codex Go TUI
+# Lisa Codex Go TUI
 
-This directory contains the Go implementation of Ralph using Charm TUI libraries.
+This directory contains the Go implementation of Lisa using Charm TUI libraries.
 
 ## Structure
 

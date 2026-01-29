@@ -3,7 +3,7 @@ package runner
 import (
 	"testing"
 
-	"github.com/brainwhocodes/ralph-codex/internal/config"
+	"github.com/brainwhocodes/lisa-loop/internal/config"
 )
 
 func TestNew_DefaultsToCodex(t *testing.T) {

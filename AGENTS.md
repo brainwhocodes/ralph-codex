@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents (Codex, Claude Code, etc.) when 
 
 ## Repository Overview
 
-Ralph Codex is an autonomous AI development loop system written in **Go**. It enables continuous development cycles with intelligent exit detection, circuit breaker patterns, and loop management. Ralph executes Codex repeatedly in a managed loop, analyzing task completion to determine when work is complete.
+Lisa Codex is an autonomous AI development loop system written in **Go**. It enables continuous development cycles with intelligent exit detection, circuit breaker patterns, and loop management. Lisa executes Codex repeatedly in a managed loop, analyzing task completion to determine when work is complete.
 
 ## Technology Stack
 
@@ -18,7 +18,7 @@ Ralph Codex is an autonomous AI development loop system written in **Go**. It en
 ## Project Structure
 
 ```
-ralph-codex/
+lisa-loop/
 ├── cmd/
 │   ├── ralph/main.go          # Main CLI entry point
 │   └── test-loop/main.go      # Loop controller test harness (no TUI)
@@ -40,11 +40,11 @@ ralph-codex/
 │   │   └── ratelimit.go       # Loop iteration management
 │   ├── project/               # Project management
 │   │   ├── codexhelper.go     # Shared Codex invocation utilities
-│   │   ├── import.go          # PRD/spec import to Ralph format
+│   │   ├── import.go          # PRD/spec import to Lisa format
 │   │   ├── init.go            # Generate plans and AGENTS.md
 │   │   ├── mode.go            # Unified project mode detection
 │   │   ├── prompts.go         # Prompt/template resolution
-│   │   └── setup.go           # Create new Ralph projects
+│   │   └── setup.go           # Create new Lisa projects
 │   ├── state/                 # State persistence
 │   │   └── files.go           # Generic LoadState[T]/SaveState[T] helpers
 │   ├── stats/                 # Statistics interface
@@ -87,9 +87,9 @@ make test
 go test -race ./...
 ```
 
-### Running Ralph
+### Running Lisa
 ```bash
-# Start the loop (from a Ralph-managed project directory)
+# Start the loop (from a Lisa-managed project directory)
 ./ralph
 
 # With TUI monitoring
@@ -114,7 +114,7 @@ cd my-project
 
 ### Importing a PRD
 ```bash
-# Convert a PRD/spec document to Ralph format
+# Convert a PRD/spec document to Lisa format
 ./ralph import spec.md --name my-project
 ```
 
@@ -221,7 +221,7 @@ State files:
 | `.call_count` | Loop iterations completed |
 | `.last_reset` | Last reset time |
 | `.codex_session_id` | Codex session for continuity |
-| `.ralph_session` | Ralph session metadata |
+| `.ralph_session` | Lisa session metadata |
 | `.circuit_breaker_state` | Circuit breaker state |
 | `.exit_signals` | Recent exit signal history |
 
@@ -234,9 +234,9 @@ Built with Bubble Tea for interactive monitoring:
 - **Keybindings**: `r` run, `p` pause, `l` logs, `c` circuit, `?` help, `q` quit
 - **Styling**: Centralized in `styles.go` with constants for spinners, log levels, colors
 
-## Ralph-Managed Project Files
+## Lisa-Managed Project Files
 
-Projects managed by Ralph use these control files:
+Projects managed by Lisa use these control files:
 
 | File | Purpose |
 |------|---------|
@@ -248,11 +248,11 @@ Projects managed by Ralph use these control files:
 | `@fix_plan.md` | Prioritized task checklist (`- [ ]` / `- [x]`) |
 | `@AGENT.md` | Build and run instructions |
 
-The `@` prefix indicates Ralph-specific control files.
+The `@` prefix indicates Lisa-specific control files.
 
 ## Exit Conditions
 
-Ralph exits when ANY of these conditions are met:
+Lisa exits when ANY of these conditions are met:
 
 1. **All tasks complete**: Every item in `@fix_plan.md` is marked `[x]`
 2. **Explicit exit signal**: `ExitSignal: true` in RALPH_STATUS block
@@ -307,7 +307,7 @@ go test -cover ./...
 
 ## Integration Points
 
-Ralph integrates with:
+Lisa integrates with:
 - **Codex CLI**: `codex exec --json` for AI execution
 - **Git**: Expects projects to be git repositories
 - **File system**: State files in project root (dot files)

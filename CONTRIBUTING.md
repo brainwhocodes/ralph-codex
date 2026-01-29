@@ -1,8 +1,8 @@
-# Contributing to Ralph for Claude Code
+# Contributing to Lisa for Claude Code
 
-Thank you for your interest in contributing to Ralph! This guide will help you get started and ensure your contributions follow our established patterns and quality standards.
+Thank you for your interest in contributing to Lisa! This guide will help you get started and ensure your contributions follow our established patterns and quality standards.
 
-**Every contribution matters** - from fixing typos to implementing major features. We appreciate your help in making Ralph better!
+**Every contribution matters** - from fixing typos to implementing major features. We appreciate your help in making Lisa better!
 
 ## Table of Contents
 
@@ -46,7 +46,7 @@ npm install
 # Verify BATS is available
 ./node_modules/.bin/bats --version
 
-# Optional: Install Ralph globally for testing
+# Optional: Install Lisa globally for testing
 ./install.sh
 ```
 
@@ -179,7 +179,7 @@ test(cli): add 27 comprehensive CLI parsing tests
 
 ### Bash Best Practices
 
-Ralph follows consistent bash conventions across all scripts:
+Lisa follows consistent bash conventions across all scripts:
 
 **File Structure:**
 
@@ -305,7 +305,7 @@ local state=$(jq -r '.state' "$STATE_FILE" 2>/dev/null || echo "CLOSED")
 
 **No Real Codex Calls in Tests**
 
-To ensure fast, reliable, and cost-effective testing, Ralph mocks all Codex CLI and SDK calls:
+To ensure fast, reliable, and cost-effective testing, Lisa mocks all Codex CLI and SDK calls:
 
 - Avoid API costs during test runs
 - Prevent rate limit issues in CI pipelines
@@ -623,7 +623,7 @@ Before marking any feature complete:
    - Video walkthroughs
 
 4. **Real-World Testing**
-   - Use Ralph on your projects
+   - Use Lisa on your projects
    - Report bugs and edge cases
    - Share your experience
 
@@ -664,8 +664,8 @@ Before marking any feature complete:
 - [CLAUDE.md](CLAUDE.md) - Technical specifications
 - [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Development roadmap
 - [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - Progress tracking
-- [GitHub Issues](https://github.com/brainwhocodes/ralph-codex/issues) - Bug reports and feature requests
+- [GitHub Issues](https://github.com/brainwhocodes/lisa-loop/issues) - Bug reports and feature requests
 
 ---
 
-**Thank you for contributing to Ralph!** Your efforts help make autonomous AI development more accessible to everyone.
+**Thank you for contributing to Lisa!** Your efforts help make autonomous AI development more accessible to everyone.

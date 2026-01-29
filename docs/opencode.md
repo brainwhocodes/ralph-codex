@@ -1,10 +1,10 @@
 # OpenCode Backend
 
-Ralph supports the OpenCode server as an alternative AI backend, enabling integration with the Z.AI GLM 4.7 coding plan model.
+Lisa supports the OpenCode server as an alternative AI backend, enabling integration with the Z.AI GLM 4.7 coding plan model.
 
 ## Overview
 
-The OpenCode backend connects Ralph to an OpenCode server instance, providing:
+The OpenCode backend connects Lisa to an OpenCode server instance, providing:
 
 - **HTTP-based API** - RESTful endpoints for session management and message passing
 - **Z.AI GLM 4.7** - Default model optimized for coding tasks (provider: `zhipuai-coding-plan`)
@@ -63,10 +63,10 @@ source ~/.zshrc
 
 ### Basic Usage
 
-Run Ralph with the OpenCode backend:
+Run Lisa with the OpenCode backend:
 
 ```bash
-ralph run --backend opencode --monitor
+lisa run --backend opencode --monitor
 ```
 
 ### With All Options
@@ -74,7 +74,7 @@ ralph run --backend opencode --monitor
 Override environment variables via command-line flags:
 
 ```bash
-ralph run \
+lisa run \
   --backend opencode \
   --opencode-url http://localhost:8080 \
   --opencode-user opencode \
@@ -90,17 +90,17 @@ ralph run \
 ```bash
 export OPENCODE_SERVER_URL="http://localhost:8080"
 export OPENCODE_SERVER_PASSWORD="secret"
-ralph run --backend opencode --monitor
+lisa run --backend opencode --monitor
 ```
 
 **Initialize and run with OpenCode:**
 ```bash
-ralph init --backend opencode
+lisa init --backend opencode
 ```
 
 **Override max calls (default is 10 for opencode):**
 ```bash
-ralph run --backend opencode --calls 5 --monitor
+lisa run --backend opencode --calls 5 --monitor
 ```
 
 ## Configuration Reference
@@ -122,7 +122,7 @@ The OpenCode backend persists session IDs in `.opencode_session_id` for conversa
 
 - Created when a new session starts
 - Updated after each successful interaction
-- Used to resume conversations across Ralph restarts
+- Used to resume conversations across Lisa restarts
 
 To start a fresh session, delete the file:
 
@@ -146,14 +146,14 @@ The default model (`glm-4.7`) is the Z.AI Coding Plan model, optimized for:
 To use a different model supported by your OpenCode server:
 
 ```bash
-ralph run --backend opencode --opencode-model your-model-id
+lisa run --backend opencode --opencode-model your-model-id
 ```
 
 Or via environment variable:
 
 ```bash
 export OPENCODE_MODEL_ID="your-model-id"
-ralph run --backend opencode
+lisa run --backend opencode
 ```
 
 ## Troubleshooting
